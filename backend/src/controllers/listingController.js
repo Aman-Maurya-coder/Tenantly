@@ -1,4 +1,5 @@
 const Listing = require('../models/Listing');
+const User = require('../models/User');
 
 // Valid status transitions: Draft -> Review -> Published (no skipping)
 const VALID_TRANSITIONS = {
@@ -42,9 +43,15 @@ const getAllListings = async (req, res, next) => {
   try {
     const { locationText, minBudget, maxBudget, moveInDate } = req.query;
     const filter = {};
+    let role = null;
+
+    if (req.auth?.userId) {
+      const dbUser = await User.findOne({ clerkId: req.auth.userId }).select('role');
+      role = dbUser?.role || null;
+    }
 
     // Public browse only sees published listings unless admin
-    if (!req.user || req.user.role !== 'admin') {
+    if (role !== 'admin') {
       filter.status = 'Published';
     }
 
@@ -62,7 +69,6 @@ const getAllListings = async (req, res, next) => {
     }
 
     const listings = await Listing.find(filter).sort({ createdAt: -1 });
-
     return res.status(200).json({
       success: true,
       count: listings.length,
@@ -77,13 +83,19 @@ const getListingById = async (req, res, next) => {
   try {
     const { id } = req.params;
     const listing = await Listing.findById(id);
+    let role = null;
+
+    if (req.auth?.userId) {
+      const dbUser = await User.findOne({ clerkId: req.auth.userId }).select('role');
+      role = dbUser?.role || null;
+    }
 
     if (!listing) {
       return res.status(404).json({ success: false, message: 'Listing not found' });
     }
 
     // Non-admin can only see published listings
-    if (listing.status !== 'Published' && (!req.user || req.user.role !== 'admin')) {
+    if (listing.status !== 'Published' && role !== 'admin') {
       return res.status(404).json({ success: false, message: 'Listing not found' });
     }
 

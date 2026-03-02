@@ -10,6 +10,7 @@ const shortlistRoutes = require('./routes/shortlistRoutes');
 const moveInRoutes = require('./routes/moveInRoutes');
 const supportRoutes = require('./routes/supportRoutes');
 const extensionRoutes = require('./routes/extensionRoutes');
+const userRoutes = require('./routes/userRoutes');
 const { notFoundHandler, errorHandler } = require('./middleware/errorMiddleware');
 
 dotenv.config();
@@ -31,6 +32,7 @@ app.use('/api/shortlist', shortlistRoutes);
 app.use('/api/move-in', moveInRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/extensions', extensionRoutes);
+app.use('/api/users', userRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
