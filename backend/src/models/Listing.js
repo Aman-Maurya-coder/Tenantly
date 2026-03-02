@@ -31,6 +31,10 @@ const listingSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
+    amenities: {
+      type: [String],
+      default: [],
+    },
     status: {
       type: String,
       enum: ['Draft', 'Review', 'Published'],

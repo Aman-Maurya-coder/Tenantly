@@ -6,6 +6,7 @@ const { clerkMiddleware } = require('@clerk/express');
 
 const listingRoutes = require('./routes/listingRoutes');
 const visitRoutes = require('./routes/visitRoutes');
+const shortlistRoutes = require('./routes/shortlistRoutes');
 const { notFoundHandler, errorHandler } = require('./middleware/errorMiddleware');
 
 dotenv.config();
@@ -23,6 +24,7 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api/listings', listingRoutes);
 app.use('/api/visits', visitRoutes);
+app.use('/api/shortlist', shortlistRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
