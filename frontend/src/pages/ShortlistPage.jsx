@@ -11,9 +11,24 @@ export default function ShortlistPage() {
   const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
   const [visitForms, setVisitForms] = useState({});
+  const [visitFieldErrors, setVisitFieldErrors] = useState({});
+
+  const getVisitActionLabel = (listing) => {
+    if (listing?.listingState?.hasActiveVisitRequest) {
+      return 'Visit requested';
+    }
+
+    return 'Request visit';
+  };
 
   const fetch = () => {
-    api.get('/shortlist').then((r) => { setItems(r.data.data); setLoading(false); }).catch(console.error);
+    api.get('/shortlist').then((r) => {
+      setItems(r.data.data);
+      setLoading(false);
+    }).catch((requestError) => {
+      setError(requestError.response?.data?.message || 'Unable to load shortlist');
+      setLoading(false);
+    });
   };
   useEffect(fetch, []);
 
@@ -50,6 +65,7 @@ export default function ShortlistPage() {
     const current = visitForms[listingId] || {};
     if (!current.requestedDate) {
       setError('Select a requested date before requesting a visit.');
+      setVisitFieldErrors((existing) => ({ ...existing, [listingId]: 'Pick a date before sending the request.' }));
       return;
     }
     try {
@@ -60,6 +76,8 @@ export default function ShortlistPage() {
       });
       setMsg('Visit request created from shortlist.');
       setError('');
+      setVisitFieldErrors((existing) => ({ ...existing, [listingId]: '' }));
+      fetch();
     } catch (e) {
       setError(e.response?.data?.message || 'Unable to request visit');
     }
@@ -90,19 +108,24 @@ export default function ShortlistPage() {
                 <div className="listing-inline-actions">
                   {s.listing?.listingState?.isExpired ? <span className="badge badge-error">Expired</span> : null}
                   {s.listing?.listingState?.unavailableToCurrentTenant ? <span className="badge badge-warning">Reserved</span> : null}
+                  <button onClick={() => remove(s.listing._id)} className="btn btn-tertiary" type="button">Remove</button>
                   <label className="text-xs flex items-center gap-1 muted">
                     <input type="checkbox" checked={compareIds.includes(s.listing._id)} onChange={() => toggleCompare(s.listing._id)} />
                     Compare
                   </label>
                   <input
                     type="date"
-                    className="input max-w-44"
+                    className={`input max-w-44 ${visitFieldErrors[s.listing._id] ? 'input-error' : ''}`}
                     value={visitForms[s.listing._id]?.requestedDate || ''}
-                    onChange={(e) => setVisitForms({
-                      ...visitForms,
-                      [s.listing._id]: { ...visitForms[s.listing._id], requestedDate: e.target.value },
-                    })}
+                    onChange={(e) => {
+                      setVisitForms({
+                        ...visitForms,
+                        [s.listing._id]: { ...visitForms[s.listing._id], requestedDate: e.target.value },
+                      });
+                      setVisitFieldErrors((existing) => ({ ...existing, [s.listing._id]: '' }));
+                    }}
                   />
+                  {visitFieldErrors[s.listing._id] ? <p className="field-error">{visitFieldErrors[s.listing._id]}</p> : null}
                   <input
                     placeholder="Notes (optional)"
                     className="input max-w-sm"
@@ -115,11 +138,11 @@ export default function ShortlistPage() {
                   <button
                     onClick={() => requestVisit(s.listing._id)}
                     className="btn btn-primary"
+                    type="button"
                     disabled={!s.listing?.listingState?.canRequestVisit}
                   >
-                    Request visit
+                    {getVisitActionLabel(s.listing)}
                   </button>
-                  <button onClick={() => remove(s.listing._id)} className="btn btn-danger">Remove</button>
                 </div>
               </div>
             ))}
@@ -131,8 +154,8 @@ export default function ShortlistPage() {
         </>
       )}
 
-      {msg && <p className="text-sm mt-2" style={{ color: 'var(--color-success)' }}>{msg}</p>}
-      {error && <p className="text-sm mt-2" style={{ color: 'var(--color-error)' }}>{error}</p>}
+      {msg ? <p className="form-alert form-alert--success mt-2">{msg}</p> : null}
+      {error ? <p className="form-alert form-alert--error mt-2">{error}</p> : null}
 
       {compareData && (
         <div className="overflow-x-auto mt-6">
@@ -167,8 +190,9 @@ export default function ShortlistPage() {
                 className="btn btn-primary"
                 disabled={!listing.listingState?.canRequestVisit}
                 onClick={() => requestVisit(listing._id)}
+                type="button"
               >
-                Request visit: {listing.title}
+                {`${getVisitActionLabel(listing)}: ${listing.title}`}
               </button>
             ))}
           </div>

@@ -22,6 +22,8 @@ const VALID_TRANSITIONS = {
 
 const MAX_IMAGES = 8;
 
+const createPreviewId = () => `preview-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
 export default function AdminListingsPage() {
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,6 +33,8 @@ export default function AdminListingsPage() {
   const [editId, setEditId] = useState(null);
   const [existingImages, setExistingImages] = useState([]);
   const [newImagePreviews, setNewImagePreviews] = useState([]);
+  const [coverImageRef, setCoverImageRef] = useState('');
+  const [validationErrors, setValidationErrors] = useState({});
   const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
 
@@ -63,8 +67,23 @@ export default function AdminListingsPage() {
     setForm(EMPTY_FORM);
     setExistingImages([]);
     setEditId(null);
+    setCoverImageRef('');
+    setValidationErrors({});
     setShowForm(false);
     setError('');
+  };
+
+  const validateForm = () => {
+    const nextErrors = {};
+
+    if (!form.title.trim()) nextErrors.title = 'Title is required.';
+    if (!form.locationText.trim()) nextErrors.locationText = 'Location is required.';
+    if (!form.description.trim()) nextErrors.description = 'Description is required.';
+    if (!form.budget || Number(form.budget) <= 0) nextErrors.budget = 'Enter a valid monthly budget.';
+    if (!form.moveInDate) nextErrors.moveInDate = 'Move-in date is required.';
+
+    setValidationErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
   };
 
   const handleImageSelection = (event) => {
@@ -79,22 +98,47 @@ export default function AdminListingsPage() {
     }
 
     const nextPreviews = allowedFiles.map((file) => ({
+      id: createPreviewId(),
       file,
       name: file.name,
       url: URL.createObjectURL(file),
     }));
 
     setNewImagePreviews((current) => [...current, ...nextPreviews]);
+    if (!coverImageRef && existingImages.length === 0 && nextPreviews[0]) {
+      setCoverImageRef(`new:${nextPreviews[0].id}`);
+    }
     event.target.value = '';
   };
 
   const removeExistingImage = (pathToRemove) => {
-    setExistingImages((current) => current.filter((image) => image.path !== pathToRemove));
+    const nextExistingImages = existingImages.filter((image) => image.path !== pathToRemove);
+    setExistingImages(nextExistingImages);
+
+    if (coverImageRef === `existing:${pathToRemove}`) {
+      if (nextExistingImages[0]) {
+        setCoverImageRef(`existing:${nextExistingImages[0].path}`);
+      } else if (newImagePreviews[0]) {
+        setCoverImageRef(`new:${newImagePreviews[0].id}`);
+      } else {
+        setCoverImageRef('');
+      }
+    }
   };
 
   const removeNewImage = (indexToRemove) => {
     setNewImagePreviews((current) => current.filter((preview, index) => {
       if (index === indexToRemove) {
+        if (coverImageRef === `new:${preview.id}`) {
+          const fallbackPreview = current.find((candidate, candidateIndex) => candidateIndex !== indexToRemove);
+          if (existingImages[0]) {
+            setCoverImageRef(`existing:${existingImages[0].path}`);
+          } else if (fallbackPreview) {
+            setCoverImageRef(`new:${fallbackPreview.id}`);
+          } else {
+            setCoverImageRef('');
+          }
+        }
         URL.revokeObjectURL(preview.url);
         return false;
       }
@@ -103,6 +147,12 @@ export default function AdminListingsPage() {
   };
 
   const save = async () => {
+    if (!validateForm()) {
+      setError('Fix the highlighted fields before saving this listing.');
+      setMsg('');
+      return;
+    }
+
     setSaving(true);
     setMsg('');
     setError('');
@@ -122,6 +172,8 @@ export default function AdminListingsPage() {
       JSON.stringify(form.inventoryTemplate.split(',').map((item) => item.trim()).filter(Boolean))
     );
     payload.append('retainedImages', JSON.stringify(existingImages));
+    payload.append('coverImageRef', coverImageRef);
+    payload.append('newImageKeys', JSON.stringify(newImagePreviews.map((preview) => preview.id)));
 
     if (editId) {
       payload.append('status', form.status);
@@ -165,6 +217,8 @@ export default function AdminListingsPage() {
     setExistingImages(listing.images || []);
     setEditId(listing._id);
     setShowForm(true);
+    setCoverImageRef(listing.images?.[0] ? `existing:${listing.images[0].path}` : '');
+    setValidationErrors({});
     setError('');
     setMsg('');
   };
@@ -218,24 +272,29 @@ export default function AdminListingsPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <label>
-              <span className="text-sm font-medium">Title</span>
-              <input className="input mt-1" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} />
+              <span className={`text-sm font-medium ${validationErrors.title ? 'field-label--error' : ''}`}>Title</span>
+              <input className={`input mt-1 ${validationErrors.title ? 'input-error' : ''}`} value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} />
+              {validationErrors.title ? <p className="field-error">{validationErrors.title}</p> : null}
             </label>
             <label>
-              <span className="text-sm font-medium">Location</span>
-              <input className="input mt-1" value={form.locationText} onChange={(event) => setForm({ ...form, locationText: event.target.value })} />
+              <span className={`text-sm font-medium ${validationErrors.locationText ? 'field-label--error' : ''}`}>Location</span>
+              <input className={`input mt-1 ${validationErrors.locationText ? 'input-error' : ''}`} value={form.locationText} onChange={(event) => setForm({ ...form, locationText: event.target.value })} />
+              {validationErrors.locationText ? <p className="field-error">{validationErrors.locationText}</p> : null}
             </label>
             <label className="lg:col-span-2">
-              <span className="text-sm font-medium">Description</span>
-              <textarea className="textarea mt-1" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} />
+              <span className={`text-sm font-medium ${validationErrors.description ? 'field-label--error' : ''}`}>Description</span>
+              <textarea className={`textarea mt-1 ${validationErrors.description ? 'input-error' : ''}`} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} />
+              {validationErrors.description ? <p className="field-error">{validationErrors.description}</p> : null}
             </label>
             <label>
-              <span className="text-sm font-medium">Budget</span>
-              <input type="number" className="input mt-1" value={form.budget} onChange={(event) => setForm({ ...form, budget: event.target.value })} />
+              <span className={`text-sm font-medium ${validationErrors.budget ? 'field-label--error' : ''}`}>Budget</span>
+              <input type="number" className={`input mt-1 ${validationErrors.budget ? 'input-error' : ''}`} value={form.budget} onChange={(event) => setForm({ ...form, budget: event.target.value })} />
+              {validationErrors.budget ? <p className="field-error">{validationErrors.budget}</p> : null}
             </label>
             <label>
-              <span className="text-sm font-medium">Move-in date</span>
-              <input type="date" className="input mt-1" value={form.moveInDate} onChange={(event) => setForm({ ...form, moveInDate: event.target.value })} />
+              <span className={`text-sm font-medium ${validationErrors.moveInDate ? 'field-label--error' : ''}`}>Move-in date</span>
+              <input type="date" className={`input mt-1 ${validationErrors.moveInDate ? 'input-error' : ''}`} value={form.moveInDate} onChange={(event) => setForm({ ...form, moveInDate: event.target.value })} />
+              {validationErrors.moveInDate ? <p className="field-error">{validationErrors.moveInDate}</p> : null}
             </label>
             <label>
               <span className="text-sm font-medium">Amenities</span>
@@ -266,25 +325,31 @@ export default function AdminListingsPage() {
 
           {existingImages.length > 0 || newImagePreviews.length > 0 ? (
             <div className="image-preview-strip">
-              {existingImages.map((image, index) => (
+              {existingImages.map((image) => (
                 <div key={image.path} className="image-preview-card">
                   <img src={getMediaUrl(image.path)} alt={image.altText || `${form.title || 'Listing'} image`} className="image-preview-image" />
                   <div className="image-preview-meta">
                     <p>{image.originalName}</p>
-                    {index === 0 ? <span className="image-preview-badge">Cover</span> : null}
+                    {coverImageRef === `existing:${image.path}` ? <span className="image-preview-badge">Cover</span> : null}
                   </div>
-                  <button onClick={() => removeExistingImage(image.path)} className="btn btn-tertiary" type="button">Remove</button>
+                  <div className="button-row">
+                    <button onClick={() => setCoverImageRef(`existing:${image.path}`)} className="btn btn-secondary" type="button">Set as cover image</button>
+                    <button onClick={() => removeExistingImage(image.path)} className="btn btn-tertiary" type="button">Remove</button>
+                  </div>
                 </div>
               ))}
 
               {newImagePreviews.map((preview, index) => (
-                <div key={`${preview.name}-${index}`} className="image-preview-card">
+                <div key={preview.id} className="image-preview-card">
                   <img src={preview.url} alt={preview.name} className="image-preview-image" />
                   <div className="image-preview-meta">
                     <p>{preview.name}</p>
-                    {existingImages.length === 0 && index === 0 ? <span className="image-preview-badge">Cover</span> : null}
+                    {coverImageRef === `new:${preview.id}` ? <span className="image-preview-badge">Cover</span> : null}
                   </div>
-                  <button onClick={() => removeNewImage(index)} className="btn btn-tertiary" type="button">Remove</button>
+                  <div className="button-row">
+                    <button onClick={() => setCoverImageRef(`new:${preview.id}`)} className="btn btn-secondary" type="button">Set as cover image</button>
+                    <button onClick={() => removeNewImage(index)} className="btn btn-tertiary" type="button">Remove</button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -299,8 +364,8 @@ export default function AdminListingsPage() {
         </section>
       ) : null}
 
-      {msg ? <p className="text-sm mb-3" style={{ color: 'var(--color-success)' }}>{msg}</p> : null}
-      {error ? <p className="text-sm mb-3" style={{ color: 'var(--color-error)' }}>{error}</p> : null}
+      {msg ? <p className="form-alert form-alert--success mb-3">{msg}</p> : null}
+      {error ? <p className="form-alert form-alert--error mb-3">{error}</p> : null}
 
       <div className="space-y-4">
         {listings.map((listing) => (

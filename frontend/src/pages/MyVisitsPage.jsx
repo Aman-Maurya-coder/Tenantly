@@ -72,8 +72,8 @@ export default function MyVisitsPage() {
   return (
     <div>
       <h2 className="text-3xl font-bold mb-4">My Visits</h2>
-      {msg && <p className="text-sm mb-3" style={{ color: 'var(--color-success)' }}>{msg}</p>}
-      {error && <p className="text-sm mb-3" style={{ color: 'var(--color-error)' }}>{error}</p>}
+      {msg ? <p className="form-alert form-alert--success mb-3">{msg}</p> : null}
+      {error ? <p className="form-alert form-alert--error mb-3">{error}</p> : null}
       {visits.length === 0 ? <p className="muted">No visit requests yet.</p> : (
         <div className="space-y-3">
           {visits.map((v) => (
