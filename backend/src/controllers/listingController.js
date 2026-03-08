@@ -1,5 +1,10 @@
 const Listing = require('../models/Listing');
 const User = require('../models/User');
+const {
+  deleteStoredAssets,
+  getMediaPath,
+  persistUploadedFilesToMedia,
+} = require('../services/mediaStorage');
 
 // Valid status transitions: Draft -> Review -> Published (no skipping)
 const VALID_TRANSITIONS = {
@@ -14,16 +19,150 @@ const getStartOfToday = () => {
   return today;
 };
 
+const parseStructuredValue = (value) => {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value !== 'string') {
+    return value;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  try {
+    return JSON.parse(trimmed);
+  } catch (_error) {
+    return value;
+  }
+};
+
+const normalizeStringArray = (value) => {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const parsed = parseStructuredValue(value);
+
+  if (Array.isArray(parsed)) {
+    return parsed.map((entry) => String(entry || '').trim()).filter(Boolean);
+  }
+
+  if (typeof parsed === 'string') {
+    return parsed
+      .split(',')
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+};
+
 const normalizeInventoryTemplate = (inventoryTemplate) => {
-  if (!Array.isArray(inventoryTemplate)) {
+  if (inventoryTemplate === undefined) {
+    return undefined;
+  }
+
+  const parsed = parseStructuredValue(inventoryTemplate);
+  if (!Array.isArray(parsed)) {
     return [];
   }
 
-  return inventoryTemplate
+  return parsed
     .map((entry) => (typeof entry === 'string' ? entry : entry?.item))
     .map((item) => (item || '').trim())
     .filter(Boolean)
     .map((item) => ({ item }));
+};
+
+const normalizeIdentifierArray = (value) => {
+  if (value === undefined) {
+    return [];
+  }
+
+  const parsed = parseStructuredValue(value);
+
+  if (Array.isArray(parsed)) {
+    return parsed.map((entry) => String(entry || '').trim()).filter(Boolean);
+  }
+
+  if (typeof parsed === 'string' && parsed.trim()) {
+    return [parsed.trim()];
+  }
+
+  return [];
+};
+
+const normalizeListingImages = (images) => {
+  if (images === undefined) {
+    return undefined;
+  }
+
+  const parsed = parseStructuredValue(images);
+  if (!Array.isArray(parsed)) {
+    return [];
+  }
+
+  return parsed
+    .filter((image) => image && (typeof image.path === 'string' || typeof image.mediaId === 'string'))
+    .map((image) => ({
+      mediaId: String(image.mediaId || '').trim() || null,
+      storedName: String(image.storedName || '').trim(),
+      originalName: String(image.originalName || '').trim(),
+      mimeType: String(image.mimeType || '').trim(),
+      size: Number(image.size || 0),
+      path: String(image.path || getMediaPath(String(image.mediaId || '').trim())).trim(),
+      altText: String(image.altText || '').trim(),
+      caption: String(image.caption || '').trim(),
+    }))
+    .filter((image) => image.storedName && image.originalName && image.mimeType && image.path);
+};
+
+const reorderImagesByCoverReference = (images, coverImageRef) => {
+  const nextImages = (images || []).map((image) => ({ ...image }));
+
+  if (!coverImageRef) {
+    return nextImages.map(({ clientKey, ...image }) => image);
+  }
+
+  const [referenceType, referenceValue] = String(coverImageRef).split(':');
+  const selectedIndex = nextImages.findIndex((image) => {
+    if (referenceType === 'existing') {
+      return image.path === referenceValue || image.mediaId === referenceValue;
+    }
+
+    if (referenceType === 'new') {
+      return image.clientKey === referenceValue;
+    }
+
+    return image.path === coverImageRef || image.mediaId === coverImageRef;
+  });
+
+  if (selectedIndex <= 0) {
+    return nextImages.map(({ clientKey, ...image }) => image);
+  }
+
+  const [selectedImage] = nextImages.splice(selectedIndex, 1);
+  return [selectedImage, ...nextImages].map(({ clientKey, ...image }) => image);
+};
+
+const persistListingImages = async (files, newImageKeys, uploadedBy) => {
+  const storedFiles = await persistUploadedFilesToMedia(files, (file, index) => ({
+    kind: 'listing-image',
+    uploadedBy,
+    originalName: file.originalname,
+    clientKey: newImageKeys[index] || null,
+  }));
+
+  return storedFiles.map((file, index) => ({
+    ...file,
+    altText: '',
+    caption: '',
+    clientKey: newImageKeys[index] || null,
+  }));
 };
 
 const getRoleAndTenant = async (req) => {
@@ -55,8 +194,14 @@ const withReservationState = (listing, tenantId) => {
 };
 
 const createListing = async (req, res, next) => {
+  let uploadedImages = [];
+
   try {
-    const { title, description, locationText, budget, moveInDate, inventoryTemplate } = req.body;
+    const { title, description, locationText, budget, moveInDate } = req.body;
+    const amenities = normalizeStringArray(req.body.amenities);
+    const inventoryTemplate = normalizeInventoryTemplate(req.body.inventoryTemplate);
+    const coverImageRef = req.body.coverImageRef;
+    const newImageKeys = normalizeIdentifierArray(req.body.newImageKeys);
 
     if (!title || !description || !locationText || budget === undefined || !moveInDate) {
       return res.status(400).json({
@@ -64,6 +209,8 @@ const createListing = async (req, res, next) => {
         message: 'title, description, locationText, budget, and moveInDate are required',
       });
     }
+
+    uploadedImages = await persistListingImages(req.files || [], newImageKeys, req.user?.clerkId || null);
 
     const listing = await Listing.create({
       title,
@@ -73,7 +220,9 @@ const createListing = async (req, res, next) => {
       moveInDate,
       status: 'Draft',
       createdBy: req.user.clerkId,
-      inventoryTemplate: normalizeInventoryTemplate(inventoryTemplate),
+      amenities: amenities || [],
+      inventoryTemplate: inventoryTemplate || [],
+      images: reorderImagesByCoverReference(uploadedImages, coverImageRef),
     });
 
     return res.status(201).json({
@@ -82,6 +231,7 @@ const createListing = async (req, res, next) => {
       data: listing,
     });
   } catch (error) {
+    await deleteStoredAssets(uploadedImages);
     next(error);
   }
 };
@@ -147,6 +297,8 @@ const getListingById = async (req, res, next) => {
 };
 
 const updateListing = async (req, res, next) => {
+  let uploadedImages = [];
+
   try {
     const { id } = req.params;
     const {
@@ -156,15 +308,21 @@ const updateListing = async (req, res, next) => {
       budget,
       moveInDate,
       status,
-      inventoryTemplate,
       reservedForTenant,
       reservationVisit,
+      coverImageRef,
     } = req.body;
+    const amenities = normalizeStringArray(req.body.amenities);
+    const inventoryTemplate = normalizeInventoryTemplate(req.body.inventoryTemplate);
+    const retainedImages = normalizeListingImages(req.body.retainedImages);
+    const newImageKeys = normalizeIdentifierArray(req.body.newImageKeys);
 
     const listing = await Listing.findById(id);
     if (!listing) {
       return res.status(404).json({ success: false, message: 'Listing not found' });
     }
+
+    uploadedImages = await persistListingImages(req.files || [], newImageKeys, req.user?.clerkId || null);
 
     // Status transition validation
     if (status && status !== listing.status) {
@@ -184,8 +342,11 @@ const updateListing = async (req, res, next) => {
     if (budget !== undefined) listing.budget = budget;
     if (moveInDate !== undefined) listing.moveInDate = moveInDate;
     if (status !== undefined) listing.status = status;
+    if (amenities !== undefined) {
+      listing.amenities = amenities;
+    }
     if (inventoryTemplate !== undefined) {
-      listing.inventoryTemplate = normalizeInventoryTemplate(inventoryTemplate);
+      listing.inventoryTemplate = inventoryTemplate;
     }
     if (reservedForTenant !== undefined) {
       listing.reservedForTenant = reservedForTenant || null;
@@ -194,12 +355,80 @@ const updateListing = async (req, res, next) => {
       listing.reservationVisit = reservationVisit || null;
     }
 
+    if (retainedImages !== undefined || uploadedImages.length > 0) {
+      const nextImages = [
+        ...(retainedImages !== undefined ? retainedImages : listing.images),
+        ...uploadedImages,
+      ];
+
+      const removedAssets = (listing.images || []).filter((existingImage) => (
+        !nextImages.some((image) => (
+          image.path === existingImage.path || (image.mediaId && image.mediaId === existingImage.mediaId)
+        ))
+      ));
+
+      listing.images = reorderImagesByCoverReference(nextImages, coverImageRef);
+      await listing.save();
+      await deleteStoredAssets(removedAssets);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Listing updated successfully',
+        data: listing,
+      });
+    }
+
     await listing.save();
 
     return res.status(200).json({
       success: true,
       message: 'Listing updated successfully',
       data: listing,
+    });
+  } catch (error) {
+    await deleteStoredAssets(uploadedImages);
+    next(error);
+  }
+};
+
+const getListingStats = async (_req, res, next) => {
+  try {
+    const startOfToday = getStartOfToday();
+    const [total, draft, review, published, reserved, available] = await Promise.all([
+      Listing.countDocuments(),
+      Listing.countDocuments({ status: 'Draft' }),
+      Listing.countDocuments({ status: 'Review' }),
+      Listing.countDocuments({ status: 'Published' }),
+      Listing.countDocuments({ reservedForTenant: { $ne: null } }),
+      Listing.countDocuments({
+        status: 'Published',
+        reservedForTenant: null,
+        moveInDate: { $gte: startOfToday },
+      }),
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        total,
+        draft,
+        review,
+        published,
+        reserved,
+        available,
+        summary: {
+          key: 'listings',
+          label: 'Listings',
+          total,
+          metrics: [
+            { key: 'draft', label: 'Draft', value: draft },
+            { key: 'review', label: 'Review', value: review },
+            { key: 'published', label: 'Published', value: published },
+            { key: 'reserved', label: 'Reserved', value: reserved },
+            { key: 'available', label: 'Available', value: available },
+          ],
+        },
+      },
     });
   } catch (error) {
     next(error);
@@ -215,6 +444,7 @@ const deleteListing = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Listing not found' });
     }
 
+    await deleteStoredAssets(listing.images || []);
     await Listing.findByIdAndDelete(id);
 
     return res.status(200).json({
@@ -230,6 +460,7 @@ module.exports = {
   createListing,
   getAllListings,
   getListingById,
+  getListingStats,
   updateListing,
   deleteListing,
 };

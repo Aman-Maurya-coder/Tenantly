@@ -1,8 +1,10 @@
 const Shortlist = require('../models/Shortlist');
 const Listing = require('../models/Listing');
+const VisitRequest = require('../models/VisitRequest');
 
 const MAX_SHORTLIST = 10;
 const MAX_COMPARE = 3;
+const ACTIVE_VISIT_STATES = ['Requested', 'Scheduled', 'Visited', 'CancelRequested'];
 
 const getStartOfToday = () => {
   const today = new Date();
@@ -10,12 +12,13 @@ const getStartOfToday = () => {
   return today;
 };
 
-const enrichListingState = (listing, tenantId) => {
+const enrichListingState = (listing, tenantId, activeVisit = null) => {
   const listingData = listing.toObject ? listing.toObject() : listing;
   const isExpired = new Date(listingData.moveInDate) < getStartOfToday();
   const isReserved = Boolean(listingData.reservedForTenant);
   const reservedForCurrentTenant = listingData.reservedForTenant === tenantId;
   const unavailableToCurrentTenant = isReserved && !reservedForCurrentTenant;
+  const hasActiveVisitRequest = Boolean(activeVisit);
 
   return {
     ...listingData,
@@ -24,9 +27,26 @@ const enrichListingState = (listing, tenantId) => {
       isReserved,
       reservedForCurrentTenant,
       unavailableToCurrentTenant,
-      canRequestVisit: !isExpired && !unavailableToCurrentTenant && listingData.status === 'Published',
+      hasActiveVisitRequest,
+      activeVisitStatus: activeVisit?.status || null,
+      activeVisitId: activeVisit?._id || null,
+      canRequestVisit: !isExpired && !unavailableToCurrentTenant && listingData.status === 'Published' && !hasActiveVisitRequest,
     },
   };
+};
+
+const getActiveVisitsByListingId = async (listingIds, tenantId) => {
+  if (!listingIds.length) {
+    return new Map();
+  }
+
+  const activeVisits = await VisitRequest.find({
+    tenant: tenantId,
+    listing: { $in: listingIds },
+    status: { $in: ACTIVE_VISIT_STATES },
+  }).select('listing status');
+
+  return new Map(activeVisits.map((visit) => [String(visit.listing), visit]));
 };
 
 // Add a listing to shortlist
@@ -107,14 +127,17 @@ const removeFromShortlist = async (req, res, next) => {
 const getMyShortlist = async (req, res, next) => {
   try {
     const entries = await Shortlist.find({ tenant: req.user.clerkId })
-      .populate('listing', 'title description locationText budget moveInDate amenities status reservedForTenant reservationVisit')
+      .populate('listing', 'title description locationText budget moveInDate amenities status reservedForTenant reservationVisit images')
       .sort({ createdAt: -1 });
+
+    const listingIds = entries.filter((entry) => entry.listing).map((entry) => entry.listing._id);
+    const activeVisitsByListing = await getActiveVisitsByListingId(listingIds, req.user.clerkId);
 
     const active = entries
       .filter((entry) => entry.listing)
       .map((entry) => ({
         ...entry.toObject(),
-        listing: enrichListingState(entry.listing, req.user.clerkId),
+        listing: enrichListingState(entry.listing, req.user.clerkId, activeVisitsByListing.get(String(entry.listing._id))),
       }));
 
     return res.status(200).json({
@@ -164,7 +187,9 @@ const compareListings = async (req, res, next) => {
     // Fetch full listing details
     const listings = await Listing.find({
       _id: { $in: listingIds },
-    }).select('title description locationText budget moveInDate amenities createdAt status reservedForTenant reservationVisit');
+    }).select('title description locationText budget moveInDate amenities createdAt status reservedForTenant reservationVisit images');
+
+    const activeVisitsByListing = await getActiveVisitsByListingId(listingIds, req.user.clerkId);
 
     if (listings.length < 2) {
       return res.status(400).json({
@@ -176,7 +201,7 @@ const compareListings = async (req, res, next) => {
     return res.status(200).json({
       success: true,
       count: listings.length,
-      data: listings.map((listing) => enrichListingState(listing, req.user.clerkId)),
+      data: listings.map((listing) => enrichListingState(listing, req.user.clerkId, activeVisitsByListing.get(String(listing._id)))),
     });
   } catch (error) {
     next(error);

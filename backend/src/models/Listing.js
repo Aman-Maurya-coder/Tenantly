@@ -12,6 +12,54 @@ const inventoryTemplateItemSchema = new mongoose.Schema(
   { _id: true }
 );
 
+const listingImageSchema = new mongoose.Schema(
+  {
+    mediaId: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    storedName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    originalName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    mimeType: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    size: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    path: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    altText: {
+      type: String,
+      trim: true,
+      maxlength: 200,
+      default: '',
+    },
+    caption: {
+      type: String,
+      trim: true,
+      maxlength: 300,
+      default: '',
+    },
+  },
+  { _id: true }
+);
+
 const listingSchema = new mongoose.Schema(
   {
     title: {
@@ -61,6 +109,10 @@ const listingSchema = new mongoose.Schema(
       type: [inventoryTemplateItemSchema],
       default: [],
     },
+    images: {
+      type: [listingImageSchema],
+      default: [],
+    },
     reservedForTenant: {
       type: String,
       default: null,
@@ -72,7 +124,15 @@ const listingSchema = new mongoose.Schema(
       default: null,
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
 );
+
+listingSchema.virtual('coverImage').get(function getCoverImage() {
+  return Array.isArray(this.images) && this.images.length > 0 ? this.images[0] : null;
+});
 
 module.exports = mongoose.model('Listing', listingSchema);

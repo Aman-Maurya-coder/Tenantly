@@ -1,10 +1,50 @@
 const MoveIn = require('../models/MoveIn');
 const VisitRequest = require('../models/VisitRequest');
 const Listing = require('../models/Listing');
-const path = require('path');
+const {
+  deleteStoredAssets,
+  persistUploadedFilesToMedia,
+} = require('../services/mediaStorage');
+
+const LISTING_POPULATE_FIELDS = 'title locationText budget moveInDate status amenities inventoryTemplate images';
 
 const REQUIRED_DOCUMENT_FIELDS = ['identityProof', 'addressProof', 'incomeProof'];
 const VALID_CONDITIONS = ['good', 'minor_damage', 'needs_repair'];
+
+const persistMoveInDocuments = async (filesByField, tenantId, moveInId) => {
+  const documents = [];
+
+  try {
+    for (const field of REQUIRED_DOCUMENT_FIELDS) {
+      const [file] = filesByField[field] || [];
+      const [storedFile] = await Promise.all([
+        persistUploadedFilesToMedia(file ? [file] : [], () => ({
+          kind: 'move-in-document',
+          label: field,
+          tenantId,
+          moveInId,
+        })),
+      ]);
+
+      if (storedFile) {
+        documents.push({
+          label: field,
+          mediaId: storedFile.mediaId,
+          storedName: storedFile.storedName,
+          originalName: storedFile.originalName,
+          mimeType: storedFile.mimeType,
+          size: storedFile.size,
+          path: storedFile.path,
+        });
+      }
+    }
+
+    return documents;
+  } catch (error) {
+    await deleteStoredAssets(documents);
+    throw error;
+  }
+};
 
 const parseInventoryPayload = (value) => {
   if (!value) return [];
@@ -55,7 +95,11 @@ const initiateMoveIn = async (req, res, next) => {
     // One move-in per visit
     const existing = await MoveIn.findOne({ visit: visitId });
     if (existing) {
-      return res.status(409).json({ success: false, message: 'Move-in already initiated for this visit' });
+      return res.status(200).json({
+        success: true,
+        message: existing.status === 'completed' ? 'Move-in already completed' : 'Move-in already initiated',
+        data: existing,
+      });
     }
 
     const moveIn = await MoveIn.create({
@@ -76,6 +120,8 @@ const initiateMoveIn = async (req, res, next) => {
 
 // ---------- tenant: single submission with files ----------
 const submitMoveIn = async (req, res, next) => {
+  let documents = [];
+
   try {
     const { id } = req.params;
     const { agreed } = req.body;
@@ -143,20 +189,10 @@ const submitMoveIn = async (req, res, next) => {
       });
     }
 
-    const documents = REQUIRED_DOCUMENT_FIELDS.map((label) => {
-      const [file] = files[label];
-      return {
-        label,
-        storedName: file.filename,
-        originalName: file.originalname,
-        mimeType: file.mimetype,
-        size: file.size,
-        path: path.relative(process.cwd(), file.path).replace(/\\/g, '/'),
-      };
-    });
+    documents = await persistMoveInDocuments(files, req.user.clerkId, moveIn._id.toString());
 
     moveIn.documents = documents;
-    moveIn.status = 'completed';
+    moveIn.status = 'submitted';
     moveIn.agreementConfirmed = true;
     moveIn.agreementConfirmedAt = new Date();
     moveIn.inventoryChecklist = normalizedInventory;
@@ -165,13 +201,14 @@ const submitMoveIn = async (req, res, next) => {
 
     return res.status(200).json({
       success: true,
-      message: 'Move-in submitted and completed',
+      message: 'Move-in submitted for admin approval',
       data: moveIn,
     });
   } catch (error) {
     if (error.message.startsWith('Invalid condition for')) {
       return res.status(400).json({ success: false, message: `${error.message}. Use good, minor_damage, or needs_repair.` });
     }
+    await deleteStoredAssets(documents);
     next(error);
   }
 };
@@ -181,7 +218,7 @@ const submitMoveIn = async (req, res, next) => {
 const getMyMoveIns = async (req, res, next) => {
   try {
     const moveIns = await MoveIn.find({ tenant: req.user.clerkId })
-      .populate('listing', 'title locationText budget')
+      .populate('listing', LISTING_POPULATE_FIELDS)
       .populate('visit', 'status scheduledDate')
       .sort({ createdAt: -1 });
 
@@ -200,11 +237,73 @@ const getAllMoveIns = async (req, res, next) => {
     if (status) filter.status = status;
 
     const moveIns = await MoveIn.find(filter)
-      .populate('listing', 'title locationText budget')
+      .populate('listing', LISTING_POPULATE_FIELDS)
       .populate('visit', 'status scheduledDate')
       .sort({ createdAt: -1 });
 
     return res.status(200).json({ success: true, count: moveIns.length, data: moveIns });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getMoveInStats = async (_req, res, next) => {
+  try {
+    const [total, initiated, submitted, completed] = await Promise.all([
+      MoveIn.countDocuments(),
+      MoveIn.countDocuments({ status: 'initiated' }),
+      MoveIn.countDocuments({ status: 'submitted' }),
+      MoveIn.countDocuments({ status: 'completed' }),
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        total,
+        initiated,
+        submitted,
+        completed,
+        summary: {
+          key: 'moveIns',
+          label: 'Move-Ins',
+          total,
+          metrics: [
+            { key: 'initiated', label: 'Initiated', value: initiated },
+            { key: 'submitted', label: 'Submitted', value: submitted },
+            { key: 'completed', label: 'Completed', value: completed },
+          ],
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const approveMoveIn = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const moveIn = await MoveIn.findById(id);
+    if (!moveIn) {
+      return res.status(404).json({ success: false, message: 'Move-in not found' });
+    }
+
+    if (moveIn.status !== 'submitted') {
+      return res.status(400).json({
+        success: false,
+        message: `Only submitted move-ins can be approved. Current status: ${moveIn.status}`,
+      });
+    }
+
+    moveIn.status = 'completed';
+    await moveIn.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Move-in approved and marked as complete',
+      data: moveIn,
+    });
   } catch (error) {
     next(error);
   }
@@ -216,7 +315,7 @@ const getMoveInById = async (req, res, next) => {
   try {
     const { id } = req.params;
     const moveIn = await MoveIn.findById(id)
-      .populate('listing', 'title locationText budget amenities inventoryTemplate')
+      .populate('listing', LISTING_POPULATE_FIELDS)
       .populate('visit', 'status scheduledDate');
 
     if (!moveIn) return res.status(404).json({ success: false, message: 'Move-in not found' });
@@ -237,5 +336,7 @@ module.exports = {
   submitMoveIn,
   getMyMoveIns,
   getAllMoveIns,
+  getMoveInStats,
   getMoveInById,
+  approveMoveIn,
 };

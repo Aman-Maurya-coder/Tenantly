@@ -1,6 +1,8 @@
 const VisitRequest = require('../models/VisitRequest');
 const Listing = require('../models/Listing');
 
+const LISTING_POPULATE_FIELDS = 'title locationText budget moveInDate status images reservedForTenant';
+
 // Terminal states — visit workflow is done once it reaches any of these
 const TERMINAL_STATES = ['Interested', 'NotInterested', 'Cancelled'];
 
@@ -97,7 +99,7 @@ const createVisitRequest = async (req, res, next) => {
 const getMyVisitRequests = async (req, res, next) => {
   try {
     const visits = await VisitRequest.find({ tenant: req.user.clerkId })
-      .populate('listing', 'title locationText budget moveInDate status')
+      .populate('listing', LISTING_POPULATE_FIELDS)
       .sort({ createdAt: -1 });
 
     return res.status(200).json({
@@ -120,13 +122,58 @@ const getAllVisitRequests = async (req, res, next) => {
     if (listingId) filter.listing = listingId;
 
     const visits = await VisitRequest.find(filter)
-      .populate('listing', 'title locationText budget moveInDate status')
+      .populate('listing', LISTING_POPULATE_FIELDS)
       .sort({ createdAt: -1 });
 
     return res.status(200).json({
       success: true,
       count: visits.length,
       data: visits,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getVisitStats = async (_req, res, next) => {
+  try {
+    const [total, requested, scheduled, visited, interested, notInterested, cancelRequested, cancelled] = await Promise.all([
+      VisitRequest.countDocuments(),
+      VisitRequest.countDocuments({ status: 'Requested' }),
+      VisitRequest.countDocuments({ status: 'Scheduled' }),
+      VisitRequest.countDocuments({ status: 'Visited' }),
+      VisitRequest.countDocuments({ status: 'Interested' }),
+      VisitRequest.countDocuments({ status: 'NotInterested' }),
+      VisitRequest.countDocuments({ status: 'CancelRequested' }),
+      VisitRequest.countDocuments({ status: 'Cancelled' }),
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        total,
+        requested,
+        scheduled,
+        visited,
+        interested,
+        notInterested,
+        cancelRequested,
+        cancelled,
+        summary: {
+          key: 'visits',
+          label: 'Visits',
+          total,
+          metrics: [
+            { key: 'requested', label: 'Requested', value: requested },
+            { key: 'scheduled', label: 'Scheduled', value: scheduled },
+            { key: 'visited', label: 'Visited', value: visited },
+            { key: 'interested', label: 'Interested', value: interested },
+            { key: 'notInterested', label: 'Not Interested', value: notInterested },
+            { key: 'cancelRequested', label: 'Cancel Requested', value: cancelRequested },
+            { key: 'cancelled', label: 'Cancelled', value: cancelled },
+          ],
+        },
+      },
     });
   } catch (error) {
     next(error);
@@ -320,6 +367,7 @@ module.exports = {
   createVisitRequest,
   getMyVisitRequests,
   getAllVisitRequests,
+  getVisitStats,
   adminUpdateVisitStatus,
   tenantRequestCancel,
   tenantMarkVisited,

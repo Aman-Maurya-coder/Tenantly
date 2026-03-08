@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import ListingImage from '../components/ListingImage.jsx';
 import api from '../lib/api.js';
 
 export default function MyExtensionsPage() {
@@ -65,12 +66,17 @@ export default function MyExtensionsPage() {
             {eligibleMoveIns.map((moveIn) => (
               <button
                 key={moveIn._id}
-                className="w-full text-left p-3 rounded border"
+                className="listing-select-card"
                 style={{ borderColor: activeMoveInId === moveIn._id ? 'var(--color-fg)' : 'var(--color-border)' }}
                 onClick={() => setActiveMoveInId(moveIn._id)}
               >
-                <p className="font-semibold">{moveIn.listing?.title || 'Listing'}</p>
-                <p className="text-sm muted">{moveIn.listing?.locationText}</p>
+                <div className="listing-inline-media">
+                  <ListingImage listing={moveIn.listing} variant="panel" fallbackLabel="Listing image pending" />
+                </div>
+                <div className="listing-inline-copy">
+                  <p className="font-semibold">{moveIn.listing?.title || 'Listing'}</p>
+                  <p className="text-sm muted">{moveIn.listing?.locationText}</p>
+                </div>
               </button>
             ))}
           </div>
@@ -95,15 +101,18 @@ export default function MyExtensionsPage() {
       {extensions.length === 0 ? <p className="muted">No extension requests.</p> : (
         <div className="space-y-3">
           {extensions.map((e) => (
-            <div key={e._id} className="surface-card p-4 flex justify-between items-center gap-3">
-              <div>
+            <div key={e._id} className="listing-inline-card surface-card">
+              <div className="listing-inline-media">
+                <ListingImage listing={e.listing} variant="panel" fallbackLabel="Listing image pending" />
+              </div>
+              <div className="listing-inline-copy">
                 <p className="font-semibold">{e.listing?.title || 'Listing'}</p>
                 <p className="text-xs muted">
                   {new Date(e.currentEndDate).toLocaleDateString()} → {new Date(e.requestedEndDate).toLocaleDateString()}
                 </p>
                 <p className="text-xs muted">{e.reason}</p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="listing-inline-actions">
                 <span className={`text-xs px-2 py-1 rounded ${STATUS_COLORS[e.status]}`}>{e.status}</span>
                 {e.status === 'pending' && (
                   <button onClick={() => cancel(e._id)} className="btn btn-danger">Cancel</button>

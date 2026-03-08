@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import ListingImage from '../components/ListingImage.jsx';
 import api from '../lib/api.js';
 
 export default function MyMoveInsPage() {
@@ -20,10 +21,15 @@ export default function MyMoveInsPage() {
       {moveIns.length === 0 ? <p className="muted">No move-ins yet. Get a visit accepted first.</p> : (
         <div className="space-y-3">
           {moveIns.map((m) => (
-            <Link to={`/move-in/${m._id}`} key={m._id} className="surface-card p-4 block">
-              <p className="font-semibold">{m.listing?.title || 'Listing'}</p>
-              <p className="text-sm muted">Status: <span className="font-medium">{m.status}</span></p>
-              <p className="text-xs muted">Created: {new Date(m.createdAt).toLocaleDateString()}</p>
+            <Link to={`/move-in/${m._id}`} key={m._id} className="listing-inline-card surface-card">
+              <div className="listing-inline-media">
+                <ListingImage listing={m.listing} variant="panel" fallbackLabel="Listing image pending" />
+              </div>
+              <div className="listing-inline-copy">
+                <p className="font-semibold">{m.listing?.title || 'Listing'}</p>
+                <p className="text-sm muted">Status: <span className="font-medium">{m.status}</span></p>
+                <p className="text-xs muted">Created: {new Date(m.createdAt).toLocaleDateString()}</p>
+              </div>
             </Link>
           ))}
         </div>

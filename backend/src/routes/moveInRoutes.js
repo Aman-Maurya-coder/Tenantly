@@ -4,7 +4,9 @@ const {
   submitMoveIn,
   getMyMoveIns,
   getAllMoveIns,
+  getMoveInStats,
   getMoveInById,
+  approveMoveIn,
 } = require('../controllers/moveInController');
 const { moveInUpload } = require('../middleware/uploadMiddleware');
 const {
@@ -34,6 +36,8 @@ router.patch(
 
 // Admin routes
 router.get('/', authenticate, attachUser, requireAdmin, getAllMoveIns);
+router.get('/stats', authenticate, attachUser, requireAdmin, getMoveInStats);
+router.patch('/:id/approve', authenticate, attachUser, requireAdmin, approveMoveIn);
 
 // Shared (RBAC inside controller)
 router.get('/:id', authenticate, attachUser, getMoveInById);

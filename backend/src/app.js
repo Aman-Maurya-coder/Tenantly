@@ -6,6 +6,7 @@ const path = require('path');
 const { clerkMiddleware } = require('@clerk/express');
 
 const listingRoutes = require('./routes/listingRoutes');
+const mediaRoutes = require('./routes/mediaRoutes');
 const visitRoutes = require('./routes/visitRoutes');
 const shortlistRoutes = require('./routes/shortlistRoutes');
 const moveInRoutes = require('./routes/moveInRoutes');
@@ -29,6 +30,7 @@ app.get('/api/health', (req, res) => {
 });
 
 app.use('/api/listings', listingRoutes);
+app.use('/api/media', mediaRoutes);
 app.use('/api/visits', visitRoutes);
 app.use('/api/shortlist', shortlistRoutes);
 app.use('/api/move-in', moveInRoutes);

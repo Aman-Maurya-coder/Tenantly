@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import ListingImage from '../components/ListingImage.jsx';
 import api from '../lib/api.js';
 
 export default function ListingsPage() {
@@ -88,21 +89,24 @@ export default function ListingsPage() {
           {listings.map((listing) => {
             const state = cardState(listing);
             const cardContent = (
-              <article className={`surface-card p-4 h-full ${state.disabled ? 'opacity-70' : ''}`}>
-                <div className="flex items-start justify-between gap-2">
-                  <h3 className="text-xl font-semibold">{listing.title}</h3>
-                  <span className={state.className}>{state.label}</span>
-                </div>
-                <p className="muted text-sm">{listing.locationText}</p>
-                <p className="font-bold mt-2">₹{listing.budget}/month</p>
-                <p className="text-sm muted mt-1">Move-in: {new Date(listing.moveInDate).toLocaleDateString()}</p>
-                {listing.amenities?.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-3">
+              <article className={`listing-card surface-card ${state.disabled ? 'opacity-70' : ''}`}>
+                <ListingImage listing={listing} variant="card" fallbackLabel="Listing preview coming soon" />
+                <div className="listing-card-body">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="text-xl font-semibold">{listing.title}</h3>
+                    <span className={state.className}>{state.label}</span>
+                  </div>
+                  <p className="muted text-sm">{listing.locationText}</p>
+                  <p className="font-bold mt-2">Rs {listing.budget}/month</p>
+                  <p className="text-sm muted mt-1">Move-in: {new Date(listing.moveInDate).toLocaleDateString()}</p>
+                  {listing.amenities?.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-3">
                     {listing.amenities.map((amenity, index) => (
                       <span key={index} className="badge badge-info">{amenity}</span>
                     ))}
-                  </div>
-                )}
+                    </div>
+                  )}
+                </div>
               </article>
             );
 
@@ -111,7 +115,7 @@ export default function ListingsPage() {
             }
 
             return (
-              <Link to={`/listings/${listing._id}`} key={listing._id} aria-label={`Open ${listing.title}`}>
+              <Link to={`/listings/${listing._id}`} key={listing._id} aria-label={`Open ${listing.title}`} className="listing-card-link">
                 {cardContent}
               </Link>
             );

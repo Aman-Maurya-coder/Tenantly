@@ -45,7 +45,10 @@ export default function AdminTicketsPage() {
 
   return (
     <div>
-      <h2 className="text-3xl font-bold mb-4">Manage Tickets</h2>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <h2 className="text-3xl font-bold">Manage Tickets</h2>
+        <Link to="/admin/dashboard" className="btn btn-secondary">Back to dashboard</Link>
+      </div>
 
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">

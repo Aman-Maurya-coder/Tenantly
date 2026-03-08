@@ -5,6 +5,7 @@ const {
   getMyExtensions,
   getEligibleMoveIns,
   getAllExtensions,
+  getExtensionStats,
   adminDecideExtension,
 } = require('../controllers/extensionController');
 const {
@@ -24,6 +25,7 @@ router.patch('/:id/cancel', authenticate, attachUser, requireTenant, cancelExten
 
 // Admin routes
 router.get('/', authenticate, attachUser, requireAdmin, getAllExtensions);
+router.get('/stats', authenticate, attachUser, requireAdmin, getExtensionStats);
 router.patch('/:id/decide', authenticate, attachUser, requireAdmin, adminDecideExtension);
 
 module.exports = router;

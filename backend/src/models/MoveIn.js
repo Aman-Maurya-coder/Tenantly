@@ -7,6 +7,11 @@ const documentSubSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    mediaId: {
+      type: String,
+      trim: true,
+      default: null,
+    },
     storedName: {
       type: String,
       required: true,
@@ -97,7 +102,7 @@ const moveInSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['initiated', 'completed'],
+      enum: ['initiated', 'submitted', 'completed'],
       default: 'initiated',
     },
   },

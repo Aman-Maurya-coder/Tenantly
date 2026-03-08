@@ -3,6 +3,7 @@ const {
   createVisitRequest,
   getMyVisitRequests,
   getAllVisitRequests,
+  getVisitStats,
   adminUpdateVisitStatus,
   tenantRequestCancel,
   tenantMarkVisited,
@@ -26,6 +27,7 @@ router.patch('/:id/interest', authenticate, attachUser, requireTenant, tenantSet
 
 // Admin routes
 router.get('/', authenticate, attachUser, requireAdmin, getAllVisitRequests);
+router.get('/stats', authenticate, attachUser, requireAdmin, getVisitStats);
 router.patch('/:id/status', authenticate, attachUser, requireAdmin, adminUpdateVisitStatus);
 
 module.exports = router;

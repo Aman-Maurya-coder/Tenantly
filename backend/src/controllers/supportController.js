@@ -1,5 +1,7 @@
 const SupportTicket = require('../models/SupportTicket');
 
+const LISTING_POPULATE_FIELDS = 'title locationText images';
+
 // Admin status transitions
 const ADMIN_TRANSITIONS = {
   open: ['in_progress'],
@@ -62,7 +64,7 @@ const getMyTickets = async (req, res, next) => {
     if (category) filter.category = category;
 
     const tickets = await SupportTicket.find(filter)
-      .populate('relatedListing', 'title locationText')
+      .populate('relatedListing', LISTING_POPULATE_FIELDS)
       .populate('relatedMoveIn', 'status')
       .sort({ updatedAt: -1 });
 
@@ -85,7 +87,7 @@ const getAllTickets = async (req, res, next) => {
     if (sortBy === 'oldest') sort = { createdAt: 1 };
 
     const tickets = await SupportTicket.find(filter)
-      .populate('relatedListing', 'title locationText')
+      .populate('relatedListing', LISTING_POPULATE_FIELDS)
       .populate('relatedMoveIn', 'status')
       .sort(sort);
 
@@ -138,6 +140,19 @@ const getTicketStats = async (req, res, next) => {
         reopened,
         unresolved: open + inProgress + reopened,
         avgFirstResponseMinutes: avgResponseMinutes,
+        summary: {
+          key: 'tickets',
+          label: 'Tickets',
+          total,
+          metrics: [
+            { key: 'open', label: 'Open', value: open },
+            { key: 'inProgress', label: 'In Progress', value: inProgress },
+            { key: 'resolved', label: 'Resolved', value: resolved },
+            { key: 'closed', label: 'Closed', value: closed },
+            { key: 'reopened', label: 'Reopened', value: reopened },
+            { key: 'unresolved', label: 'Unresolved', value: open + inProgress + reopened },
+          ],
+        },
       },
     });
   } catch (error) {
@@ -152,7 +167,7 @@ const getTicketById = async (req, res, next) => {
     const { id } = req.params;
 
     const ticket = await SupportTicket.findById(id)
-      .populate('relatedListing', 'title locationText')
+      .populate('relatedListing', LISTING_POPULATE_FIELDS)
       .populate('relatedMoveIn', 'status');
 
     if (!ticket) {

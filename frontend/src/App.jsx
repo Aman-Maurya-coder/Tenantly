@@ -18,6 +18,7 @@ import AdminVisitsPage from './pages/AdminVisitsPage.jsx';
 import AdminMoveInsPage from './pages/AdminMoveInsPage.jsx';
 import AdminTicketsPage from './pages/AdminTicketsPage.jsx';
 import AdminExtensionsPage from './pages/AdminExtensionsPage.jsx';
+import AdminDashboardPage from './pages/AdminDashboardPage.jsx';
 
 function Protected({ children }) {
   return (
@@ -49,6 +50,7 @@ function App() {
         <Route path="extensions" element={<Protected><MyExtensionsPage /></Protected>} />
 
         {/* Admin - protected */}
+        <Route path="admin/dashboard" element={<Protected><AdminDashboardPage /></Protected>} />
         <Route path="admin/listings" element={<Protected><AdminListingsPage /></Protected>} />
         <Route path="admin/visits" element={<Protected><AdminVisitsPage /></Protected>} />
         <Route path="admin/move-ins" element={<Protected><AdminMoveInsPage /></Protected>} />

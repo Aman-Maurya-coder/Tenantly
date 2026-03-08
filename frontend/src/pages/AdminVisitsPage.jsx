@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import ListingImage from '../components/ListingImage.jsx';
 import api from '../lib/api.js';
 
 const STATUS_COLORS = {
@@ -41,20 +42,23 @@ export default function AdminVisitsPage() {
       {visits.length === 0 ? <p className="muted">No visit requests.</p> : (
         <div className="space-y-3">
           {visits.map((v) => (
-            <div key={v._id} className="surface-card p-4">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="font-semibold">{v.listing?.title || 'Listing'}</p>
-                  <p className="text-sm muted">Tenant: {v.tenant}</p>
-                  <p className="text-xs muted">Requested: {new Date(v.requestedDate).toLocaleDateString()}</p>
-                  {v.scheduledDate && <p className="text-xs">Scheduled: {new Date(v.scheduledDate).toLocaleDateString()}</p>}
-                  {v.tenantNotes && <p className="text-xs muted mt-1">Tenant note: {v.tenantNotes}</p>}
-                </div>
-                <span className={`text-xs px-2 py-1 rounded ${STATUS_COLORS[v.status]}`}>{v.status}</span>
+            <div key={v._id} className="listing-inline-card surface-card">
+              <div className="listing-inline-media">
+                <ListingImage listing={v.listing} variant="panel" fallbackLabel="Listing image pending" />
               </div>
 
-              {ADMIN_TRANSITIONS[v.status] && (
-                <div className="mt-3 flex gap-2 flex-wrap items-center">
+              <div className="listing-inline-copy">
+                <p className="font-semibold">{v.listing?.title || 'Listing'}</p>
+                <p className="text-sm muted">Tenant: {v.tenant}</p>
+                <p className="text-xs muted">Requested: {new Date(v.requestedDate).toLocaleDateString()}</p>
+                {v.scheduledDate ? <p className="text-xs">Scheduled: {new Date(v.scheduledDate).toLocaleDateString()}</p> : null}
+                {v.tenantNotes ? <p className="text-xs muted mt-1">Tenant note: {v.tenantNotes}</p> : null}
+              </div>
+
+              <div className="listing-inline-actions">
+                <span className={`text-xs px-2 py-1 rounded ${STATUS_COLORS[v.status]}`}>{v.status}</span>
+                {ADMIN_TRANSITIONS[v.status] ? (
+                  <div className="flex gap-2 flex-wrap items-center justify-end">
                   {v.status === 'Requested' && (
                     <input type="date" className="input max-w-44"
                       value={scheduleInputs[v._id] || ''}
@@ -66,14 +70,15 @@ export default function AdminVisitsPage() {
                       updateStatus(v._id, s, extra);
                     }} className="btn btn-secondary">{s}</button>
                   ))}
-                </div>
-              )}
+                  </div>
+                ) : null}
 
-              {['Visited', 'Interested', 'NotInterested'].includes(v.status) && (
-                <p className="mt-2 text-xs muted">
+                {['Visited', 'Interested', 'NotInterested'].includes(v.status) ? (
+                  <p className="text-xs muted text-right max-w-xs">
                   Tenant now controls visit completion and interest decisions.
-                </p>
-              )}
+                  </p>
+                ) : null}
+              </div>
             </div>
           ))}
         </div>

@@ -1,6 +1,8 @@
 const StayExtension = require('../models/StayExtension');
 const MoveIn = require('../models/MoveIn');
 
+const LISTING_POPULATE_FIELDS = 'title locationText moveInDate images';
+
 // ---------- tenant: create extension request ----------
 
 const createExtensionRequest = async (req, res, next) => {
@@ -106,7 +108,7 @@ const cancelExtensionRequest = async (req, res, next) => {
 const getMyExtensions = async (req, res, next) => {
   try {
     const extensions = await StayExtension.find({ tenant: req.user.clerkId })
-      .populate('listing', 'title locationText')
+      .populate('listing', LISTING_POPULATE_FIELDS)
       .populate('moveIn', 'status')
       .sort({ createdAt: -1 });
 
@@ -119,7 +121,7 @@ const getMyExtensions = async (req, res, next) => {
 const getEligibleMoveIns = async (req, res, next) => {
   try {
     const moveIns = await MoveIn.find({ tenant: req.user.clerkId, status: 'completed' })
-      .populate('listing', 'title locationText moveInDate')
+      .populate('listing', LISTING_POPULATE_FIELDS)
       .sort({ createdAt: -1 });
 
     return res.status(200).json({ success: true, count: moveIns.length, data: moveIns });
@@ -137,11 +139,47 @@ const getAllExtensions = async (req, res, next) => {
     if (status) filter.status = status;
 
     const extensions = await StayExtension.find(filter)
-      .populate('listing', 'title locationText')
+      .populate('listing', LISTING_POPULATE_FIELDS)
       .populate('moveIn', 'status')
       .sort({ createdAt: -1 });
 
     return res.status(200).json({ success: true, count: extensions.length, data: extensions });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getExtensionStats = async (_req, res, next) => {
+  try {
+    const [total, pending, approved, rejected, cancelled] = await Promise.all([
+      StayExtension.countDocuments(),
+      StayExtension.countDocuments({ status: 'pending' }),
+      StayExtension.countDocuments({ status: 'approved' }),
+      StayExtension.countDocuments({ status: 'rejected' }),
+      StayExtension.countDocuments({ status: 'cancelled' }),
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        total,
+        pending,
+        approved,
+        rejected,
+        cancelled,
+        summary: {
+          key: 'extensions',
+          label: 'Extensions',
+          total,
+          metrics: [
+            { key: 'pending', label: 'Pending', value: pending },
+            { key: 'approved', label: 'Approved', value: approved },
+            { key: 'rejected', label: 'Rejected', value: rejected },
+            { key: 'cancelled', label: 'Cancelled', value: cancelled },
+          ],
+        },
+      },
+    });
   } catch (error) {
     next(error);
   }
@@ -191,5 +229,6 @@ module.exports = {
   getMyExtensions,
   getEligibleMoveIns,
   getAllExtensions,
+  getExtensionStats,
   adminDecideExtension,
 };

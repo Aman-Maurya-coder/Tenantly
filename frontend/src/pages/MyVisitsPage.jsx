@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import ListingImage from '../components/ListingImage.jsx';
 import api from '../lib/api.js';
 
 const STATUS_COLORS = {
@@ -76,15 +77,18 @@ export default function MyVisitsPage() {
       {visits.length === 0 ? <p className="muted">No visit requests yet.</p> : (
         <div className="space-y-3">
           {visits.map((v) => (
-            <div key={v._id} className="surface-card p-4 flex flex-wrap items-center justify-between gap-3">
-              <div>
+            <div key={v._id} className="listing-inline-card surface-card">
+              <div className="listing-inline-media">
+                <ListingImage listing={v.listing} variant="panel" fallbackLabel="Listing image pending" />
+              </div>
+              <div className="listing-inline-copy">
                 <p className="font-semibold">{v.listing?.title || 'Listing'}</p>
                 <p className="text-sm muted">{v.listing?.locationText}</p>
                 <p className="text-xs muted">Requested: {new Date(v.requestedDate).toLocaleDateString()}</p>
-                {v.scheduledDate && <p className="text-xs">Scheduled: {new Date(v.scheduledDate).toLocaleDateString()}</p>}
-                {v.adminNotes && <p className="text-xs muted mt-1">Admin note: {v.adminNotes}</p>}
+                {v.scheduledDate ? <p className="text-xs">Scheduled: {new Date(v.scheduledDate).toLocaleDateString()}</p> : null}
+                {v.adminNotes ? <p className="text-xs muted mt-1">Admin note: {v.adminNotes}</p> : null}
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="listing-inline-actions">
                 <span className={`text-xs px-2 py-1 rounded ${STATUS_COLORS[v.status] || 'bg-gray-100'}`}>{v.status}</span>
                 {['Requested', 'Scheduled'].includes(v.status) && (
                   <button onClick={() => cancelVisit(v._id)} className="btn btn-tertiary">Cancel</button>

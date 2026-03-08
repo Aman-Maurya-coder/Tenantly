@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import ListingImage from '../components/ListingImage.jsx';
 import api from '../lib/api.js';
 
 const STATUS_COLORS = {
@@ -32,25 +33,29 @@ export default function AdminExtensionsPage() {
       {extensions.length === 0 ? <p className="muted">No extension requests.</p> : (
         <div className="space-y-3">
           {extensions.map((e) => (
-            <div key={e._id} className="surface-card p-4">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="font-semibold">{e.listing?.title || 'Listing'}</p>
-                  <p className="text-sm muted">Tenant: {e.tenant}</p>
-                  <p className="text-xs muted">
-                    {new Date(e.currentEndDate).toLocaleDateString()} → {new Date(e.requestedEndDate).toLocaleDateString()}
-                  </p>
-                  <p className="text-xs muted">{e.reason}</p>
-                </div>
-                <span className={`text-xs px-2 py-1 rounded ${STATUS_COLORS[e.status]}`}>{e.status}</span>
+            <div key={e._id} className="listing-inline-card surface-card">
+              <div className="listing-inline-media">
+                <ListingImage listing={e.listing} variant="panel" fallbackLabel="Listing image pending" />
               </div>
 
-              {e.status === 'pending' && (
-                <div className="mt-3 flex gap-2">
+              <div className="listing-inline-copy">
+                <p className="font-semibold">{e.listing?.title || 'Listing'}</p>
+                <p className="text-sm muted">Tenant: {e.tenant}</p>
+                <p className="text-xs muted">
+                    {new Date(e.currentEndDate).toLocaleDateString()} → {new Date(e.requestedEndDate).toLocaleDateString()}
+                </p>
+                <p className="text-xs muted">{e.reason}</p>
+              </div>
+
+              <div className="listing-inline-actions">
+                <span className={`text-xs px-2 py-1 rounded ${STATUS_COLORS[e.status]}`}>{e.status}</span>
+                {e.status === 'pending' ? (
+                  <div className="flex gap-2">
                   <button onClick={() => decide(e._id, 'approved')} className="btn btn-primary">Approve</button>
                   <button onClick={() => decide(e._id, 'rejected')} className="btn btn-danger">Reject</button>
-                </div>
-              )}
+                  </div>
+                ) : null}
+              </div>
             </div>
           ))}
         </div>

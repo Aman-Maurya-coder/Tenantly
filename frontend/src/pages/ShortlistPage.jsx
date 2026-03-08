@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import ListingImage from '../components/ListingImage.jsx';
 import api from '../lib/api.js';
 
 export default function ShortlistPage() {
@@ -74,18 +75,21 @@ export default function ShortlistPage() {
         <>
           <div className="space-y-3 mb-6">
             {items.map((s) => (
-              <div key={s._id} className="surface-card p-4">
-                <div className="flex items-center justify-between gap-3">
+              <div key={s._id} className="listing-inline-card surface-card">
+                <div className="listing-inline-media">
+                  <ListingImage listing={s.listing} variant="panel" fallbackLabel="Listing image pending" />
+                </div>
+
+                <div className="listing-inline-copy">
                   <Link to={`/listings/${s.listing._id}`} className="flex-1">
                     <p className="font-semibold">{s.listing.title}</p>
-                    <p className="text-sm muted">{s.listing.locationText} — ₹{s.listing.budget}/month</p>
+                    <p className="text-sm muted">{s.listing.locationText} — Rs {s.listing.budget}/month</p>
                   </Link>
-                  <div className="flex items-center gap-2">
-                    {s.listing?.listingState?.isExpired && <span className="badge badge-error">Expired</span>}
-                    {s.listing?.listingState?.unavailableToCurrentTenant && <span className="badge badge-warning">Reserved</span>}
-                  </div>
                 </div>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
+
+                <div className="listing-inline-actions">
+                  {s.listing?.listingState?.isExpired ? <span className="badge badge-error">Expired</span> : null}
+                  {s.listing?.listingState?.unavailableToCurrentTenant ? <span className="badge badge-warning">Reserved</span> : null}
                   <label className="text-xs flex items-center gap-1 muted">
                     <input type="checkbox" checked={compareIds.includes(s.listing._id)} onChange={() => toggleCompare(s.listing._id)} />
                     Compare
