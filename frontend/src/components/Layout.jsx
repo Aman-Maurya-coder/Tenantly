@@ -5,6 +5,9 @@ import { useUser } from '../context/UserContext.jsx';
 export default function Layout() {
   const { user, loading } = useUser();
   const navLinkClass = ({ isActive }) => `text-sm ${isActive ? 'font-semibold underline' : 'muted'}`;
+  const dashboardLink = !loading && user
+    ? (user.role === 'admin' ? '/admin/dashboard' : '/listings')
+    : '/';
 
   return (
     <div className="app-shell">
@@ -13,7 +16,7 @@ export default function Layout() {
       </a>
       <header className="border-b" style={{ borderColor: 'var(--color-border)' }}>
         <nav className="page-container flex flex-wrap items-center justify-between gap-3 py-4" aria-label="Main">
-          <Link to="/" className="text-2xl font-bold">Tenantly</Link>
+          <Link to={dashboardLink} className="text-2xl font-bold">Tenantly</Link>
 
           <div className="flex items-center gap-4 text-sm">
             <SignedOut>
@@ -24,14 +27,16 @@ export default function Layout() {
             <SignedIn>
               {!loading && user && (
                 <>
-                  <NavLink to="/listings" className={navLinkClass}>Listings</NavLink>
+                  <NavLink to="/" className={navLinkClass}>Home</NavLink>
                   {user.role === 'tenant' && (
                     <>
+                      <NavLink to="/listings" className={navLinkClass}>Listings</NavLink>
                       <NavLink to="/shortlist" className={navLinkClass}>Shortlist</NavLink>
                       <NavLink to="/visits" className={navLinkClass}>My Visits</NavLink>
                       <NavLink to="/move-ins" className={navLinkClass}>Move-Ins</NavLink>
                       <NavLink to="/extensions" className={navLinkClass}>Extensions</NavLink>
                       <NavLink to="/tickets" className={navLinkClass}>Support</NavLink>
+                      <NavLink to="/contact-us" className={navLinkClass}>Contact Us</NavLink>
                     </>
                   )}
                   {user.role === 'admin' && (
@@ -44,7 +49,7 @@ export default function Layout() {
                       <NavLink to="/admin/tickets" className={navLinkClass}>Tickets</NavLink>
                     </>
                   )}
-                  <span className="badge badge-info">{user.role}</span>
+                  {/* <span className="badge badge-info">{user.role}</span> */}
                   <UserButton />
                 </>
               )}

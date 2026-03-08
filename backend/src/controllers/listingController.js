@@ -108,18 +108,35 @@ const normalizeListingImages = (images) => {
 
   return parsed
     .filter((image) => image && (typeof image.path === 'string' || typeof image.mediaId === 'string'))
-    .map((image) => ({
-      mediaId: String(image.mediaId || '').trim() || null,
+    .map((image) => {
+      const mediaId = String(image.mediaId || '').trim();
+
+      return {
+        mediaId: mediaId || null,
       storedName: String(image.storedName || '').trim(),
       originalName: String(image.originalName || '').trim(),
       mimeType: String(image.mimeType || '').trim(),
       size: Number(image.size || 0),
-      path: String(image.path || getMediaPath(String(image.mediaId || '').trim())).trim(),
+      // Canonicalize to DB-backed media route whenever mediaId exists.
+      path: mediaId ? getMediaPath(mediaId) : String(image.path || '').trim(),
       altText: String(image.altText || '').trim(),
       caption: String(image.caption || '').trim(),
-    }))
+    };
+    })
     .filter((image) => image.storedName && image.originalName && image.mimeType && image.path);
 };
+
+const normalizeListingImagesForResponse = (images = []) => images.map((image) => {
+  const mediaId = String(image?.mediaId || '').trim();
+  if (!mediaId) {
+    return image;
+  }
+
+  return {
+    ...image,
+    path: getMediaPath(mediaId),
+  };
+});
 
 const reorderImagesByCoverReference = (images, coverImageRef) => {
   const nextImages = (images || []).map((image) => ({ ...image }));
@@ -179,12 +196,15 @@ const getRoleAndTenant = async (req) => {
 
 const withReservationState = (listing, tenantId) => {
   const listingData = listing.toObject();
+  const normalizedImages = normalizeListingImagesForResponse(listingData.images || []);
   const isReserved = Boolean(listingData.reservedForTenant);
   const isOwnedByCurrentTenant = tenantId && listingData.reservedForTenant === tenantId;
   const isUnavailableToCurrentTenant = isReserved && !isOwnedByCurrentTenant;
 
   return {
     ...listingData,
+    images: normalizedImages,
+    coverImage: normalizedImages[0] || null,
     reservation: {
       isReserved,
       reservedForCurrentTenant: Boolean(isOwnedByCurrentTenant),

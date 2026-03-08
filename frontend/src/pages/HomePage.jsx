@@ -20,7 +20,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="home-shell space-y-16 pb-16">
+    <div className="home-shell space-y-16 pb-5">
       {/* 1. Hero Section */}
       <section className="hero-shell reveal-up pt-12">
         <div className="grid md:grid-cols-2 gap-8 items-center page-container">
@@ -70,7 +70,7 @@ export default function HomePage() {
 
             <div className="flex gap-4">
               <Link to="/listings" className="btn btn-primary">Browse Properties</Link>
-              <Link to="/admin/listings" className="btn btn-secondary">List Your Property</Link>
+              <Link to="/contact-us" className="btn bg-indigo-700 text-white! border border-indigo-500 hover:bg-indigo-600 rounded">List Your Property</Link>
             </div>
           </div>
           <div className="hidden md:block">
@@ -95,13 +95,13 @@ export default function HomePage() {
             </div>
             <div className="space-y-4">
               <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xl mx-auto">2</div>
-              <h3 className="text-xl font-bold">Schedule Visit</h3>
-              <p className="text-sm text-gray-600">Request property visits and track their status in real time.</p>
+              <h3 className="text-xl font-bold">Compare Options</h3>
+              <p className="text-sm text-gray-600">Shortlist and compare multiple properties side‑by‑side before deciding.</p>
             </div>
             <div className="space-y-4">
               <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xl mx-auto">3</div>
-              <h3 className="text-xl font-bold">Compare Options</h3>
-              <p className="text-sm text-gray-600">Shortlist and compare multiple properties side‑by‑side before deciding.</p>
+              <h3 className="text-xl font-bold">Schedule Visit</h3>
+              <p className="text-sm text-gray-600">Request property visits and track their status in real time.</p>
             </div>
             <div className="space-y-4">
               <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xl mx-auto">4</div>
@@ -198,7 +198,7 @@ export default function HomePage() {
 
       {/* 5. Why Use This Platform */}
       <section className="page-container py-16 text-center space-y-12">
-        <h2 className="text-3xl font-bold">Why Use This Platform</h2>
+        <h2 className="text-3xl font-bold pb-5">Why Use This Platform</h2>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
           <div className="p-6 bg-white shadow-soft rounded-lg space-y-3">
             <div className="text-4xl">✅</div>
@@ -224,16 +224,16 @@ export default function HomePage() {
       </section>
 
       {/* 6. Call To Action */}
-      <section className="py-20 text-center space-y-8 bg-indigo-900 text-white rounded-xl mx-4 lg:mx-auto max-w-6xl">
-        <h2 className="text-4xl font-bold">Ready to Find Your Next Home?</h2>
+      <section className="px-10 py-20 text-center space-y-8 bg-indigo-900 text-white rounded-xl mx-4 lg:mx-auto max-w-6xl">
+        <h2 className="text-4xl font-bold pb-5 text-gray-200!">Ready to Find Your Next Home?</h2>
         <div className="flex flex-wrap justify-center gap-4">
-          <Link to="/listings" className="btn bg-white text-indigo-900 hover:bg-gray-100 px-8 py-3 text-lg font-semibold rounded shadow-md">Browse Available Properties</Link>
-          <Link to="/admin/listings" className="btn bg-indigo-700 text-white border border-indigo-500 hover:bg-indigo-600 px-8 py-3 text-lg font-semibold rounded shadow-md">List Your Property</Link>
+          <Link to="/listings" className="btn bg-white text-indigo-900! hover:bg-gray-100 px-8 py-3 text-lg font-semibold rounded shadow-md">Browse Available Properties</Link>
+          <Link to="/contact-us" className="btn bg-indigo-700 text-white border border-indigo-500 hover:bg-indigo-600 px-8 py-3 text-lg font-semibold rounded shadow-md">List Your Property</Link>
         </div>
       </section>
 
       {/* 7. Footer */}
-      <footer className="border-t pt-10 mt-16 page-container text-sm text-gray-500">
+      <footer className="border-t-2 border-gray-600 pt-10 mt-16 page-container text-sm text-gray-500 dark:border-gray-400 dark:text-gray-500">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
           <div className="space-y-4">
             <h4 className="font-bold text-gray-900 text-lg">Tenantly</h4>

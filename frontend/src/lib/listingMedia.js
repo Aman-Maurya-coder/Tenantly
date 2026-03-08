@@ -22,11 +22,23 @@ export const getMediaUrl = (assetPath) => {
   return origin ? `${origin}${normalizedPath}` : normalizedPath;
 };
 
+export const getAssetPath = (asset) => {
+  if (!asset) {
+    return '';
+  }
+
+  if (asset.mediaId) {
+    return `/api/media/${asset.mediaId}`;
+  }
+
+  return asset.path || '';
+};
+
 export const getListingImages = (listing) => (Array.isArray(listing?.images) ? listing.images : []);
 
 export const getListingCoverImage = (listing) => listing?.coverImage || getListingImages(listing)[0] || null;
 
-export const getListingCoverImageUrl = (listing) => getMediaUrl(getListingCoverImage(listing)?.path);
+export const getListingCoverImageUrl = (listing) => getMediaUrl(getAssetPath(getListingCoverImage(listing)));
 
 export const getListingImageAlt = (listing, image) => {
   if (image?.altText) {

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import ListingImage from '../components/ListingImage.jsx';
 import api from '../lib/api.js';
-import { getMediaUrl } from '../lib/listingMedia.js';
+import { getAssetPath, getMediaUrl } from '../lib/listingMedia.js';
 
 const EMPTY_FORM = {
   title: '',
@@ -241,6 +241,10 @@ export default function AdminListingsPage() {
     return <p className="muted">Loading listings...</p>;
   }
 
+  const visibleListings = editId
+    ? listings.filter((listing) => listing._id !== editId)
+    : listings;
+
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
@@ -327,7 +331,7 @@ export default function AdminListingsPage() {
             <div className="image-preview-strip">
               {existingImages.map((image) => (
                 <div key={image.path} className="image-preview-card">
-                  <img src={getMediaUrl(image.path)} alt={image.altText || `${form.title || 'Listing'} image`} className="image-preview-image" />
+                  <img src={getMediaUrl(getAssetPath(image))} alt={image.altText || `${form.title || 'Listing'} image`} className="image-preview-image" />
                   <div className="image-preview-meta">
                     <p>{image.originalName}</p>
                     {coverImageRef === `existing:${image.path}` ? <span className="image-preview-badge">Cover</span> : null}
@@ -368,7 +372,7 @@ export default function AdminListingsPage() {
       {error ? <p className="form-alert form-alert--error mb-3">{error}</p> : null}
 
       <div className="space-y-4">
-        {listings.map((listing) => (
+        {visibleListings.map((listing) => (
           <article key={listing._id} className="listing-inline-card surface-card">
             <div className="listing-inline-media">
               <ListingImage listing={listing} variant="panel" fallbackLabel="No cover yet" />

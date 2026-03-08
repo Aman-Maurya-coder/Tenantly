@@ -1,4 +1,4 @@
-import { getListingCoverImage, getListingImageAlt, getMediaUrl } from '../lib/listingMedia.js';
+import { getAssetPath, getListingCoverImage, getListingImageAlt, getMediaUrl } from '../lib/listingMedia.js';
 
 export default function ListingImage({
   listing,
@@ -9,7 +9,7 @@ export default function ListingImage({
   fallbackLabel = 'No image available',
 }) {
   const resolvedImage = image || getListingCoverImage(listing);
-  const source = getMediaUrl(resolvedImage?.path);
+  const source = getMediaUrl(getAssetPath(resolvedImage));
   const resolvedAlt = alt || getListingImageAlt(listing, resolvedImage);
 
   if (source) {

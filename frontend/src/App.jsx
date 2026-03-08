@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { SignedIn, SignedOut, RedirectToSignIn } from '@clerk/clerk-react';
 import Layout from './components/Layout.jsx';
 import HomePage from './pages/HomePage.jsx';
@@ -19,6 +19,8 @@ import AdminMoveInsPage from './pages/AdminMoveInsPage.jsx';
 import AdminTicketsPage from './pages/AdminTicketsPage.jsx';
 import AdminExtensionsPage from './pages/AdminExtensionsPage.jsx';
 import AdminDashboardPage from './pages/AdminDashboardPage.jsx';
+import ContactUsPage from './pages/ContactUsPage.jsx';
+import { useUser } from './context/UserContext.jsx';
 
 function Protected({ children }) {
   return (
@@ -29,16 +31,35 @@ function Protected({ children }) {
   );
 }
 
+function DefaultRoute() {
+  const { user, loading } = useUser();
+
+  if (loading) {
+    return <p>Loading...</p>;
+  }
+
+  if (user?.role === 'admin') {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
+
+  if (user?.role === 'tenant') {
+    return <HomePage />;
+  }
+
+  return <HomePage />;
+}
+
 function App() {
   return (
     <Routes>
       {/* Public */}
       <Route path="/" element={<Layout />}>
-        <Route index element={<HomePage />} />
+        <Route index element={<DefaultRoute />} />
         <Route path="sign-in/*" element={<SignInPage />} />
         <Route path="sign-up/*" element={<SignUpPage />} />
         <Route path="listings" element={<ListingsPage />} />
         <Route path="listings/:id" element={<ListingDetailPage />} />
+        <Route path="contact-us" element={<Protected><ContactUsPage /></Protected>} />
 
         {/* Tenant - protected */}
         <Route path="visits" element={<Protected><MyVisitsPage /></Protected>} />
