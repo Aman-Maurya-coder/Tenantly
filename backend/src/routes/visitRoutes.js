@@ -5,6 +5,8 @@ const {
   getAllVisitRequests,
   adminUpdateVisitStatus,
   tenantRequestCancel,
+  tenantMarkVisited,
+  tenantSetInterest,
 } = require('../controllers/visitController');
 const {
   authenticate,
@@ -19,6 +21,8 @@ const router = express.Router();
 router.post('/', authenticate, attachUser, requireTenant, createVisitRequest);
 router.get('/mine', authenticate, attachUser, requireTenant, getMyVisitRequests);
 router.patch('/:id/cancel', authenticate, attachUser, requireTenant, tenantRequestCancel);
+router.patch('/:id/visited', authenticate, attachUser, requireTenant, tenantMarkVisited);
+router.patch('/:id/interest', authenticate, attachUser, requireTenant, tenantSetInterest);
 
 // Admin routes
 router.get('/', authenticate, attachUser, requireAdmin, getAllVisitRequests);

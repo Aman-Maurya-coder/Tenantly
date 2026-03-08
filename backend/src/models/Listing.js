@@ -1,5 +1,17 @@
 const mongoose = require('mongoose');
 
+const inventoryTemplateItemSchema = new mongoose.Schema(
+  {
+    item: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 120,
+    },
+  },
+  { _id: true }
+);
+
 const listingSchema = new mongoose.Schema(
   {
     title: {
@@ -44,6 +56,20 @@ const listingSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+    },
+    inventoryTemplate: {
+      type: [inventoryTemplateItemSchema],
+      default: [],
+    },
+    reservedForTenant: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    reservationVisit: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'VisitRequest',
+      default: null,
     },
   },
   { timestamps: true }

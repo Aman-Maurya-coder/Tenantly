@@ -13,8 +13,6 @@ const STATUS_COLORS = {
 
 const ADMIN_TRANSITIONS = {
   Requested: ['Scheduled'],
-  Scheduled: ['Visited'],
-  Visited: ['Interested', 'NotInterested'],
   CancelRequested: ['Cancelled'],
 };
 
@@ -39,18 +37,18 @@ export default function AdminVisitsPage() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-4">Manage Visits</h2>
-      {visits.length === 0 ? <p className="text-gray-500">No visit requests.</p> : (
+      <h2 className="text-3xl font-bold mb-4">Manage Visits</h2>
+      {visits.length === 0 ? <p className="muted">No visit requests.</p> : (
         <div className="space-y-3">
           {visits.map((v) => (
-            <div key={v._id} className="bg-white p-4 rounded shadow">
+            <div key={v._id} className="surface-card p-4">
               <div className="flex justify-between items-start">
                 <div>
                   <p className="font-semibold">{v.listing?.title || 'Listing'}</p>
-                  <p className="text-sm text-gray-500">Tenant: {v.tenant}</p>
-                  <p className="text-xs text-gray-400">Requested: {new Date(v.requestedDate).toLocaleDateString()}</p>
-                  {v.scheduledDate && <p className="text-xs text-blue-500">Scheduled: {new Date(v.scheduledDate).toLocaleDateString()}</p>}
-                  {v.tenantNotes && <p className="text-xs text-gray-400 mt-1">Tenant note: {v.tenantNotes}</p>}
+                  <p className="text-sm muted">Tenant: {v.tenant}</p>
+                  <p className="text-xs muted">Requested: {new Date(v.requestedDate).toLocaleDateString()}</p>
+                  {v.scheduledDate && <p className="text-xs">Scheduled: {new Date(v.scheduledDate).toLocaleDateString()}</p>}
+                  {v.tenantNotes && <p className="text-xs muted mt-1">Tenant note: {v.tenantNotes}</p>}
                 </div>
                 <span className={`text-xs px-2 py-1 rounded ${STATUS_COLORS[v.status]}`}>{v.status}</span>
               </div>
@@ -58,7 +56,7 @@ export default function AdminVisitsPage() {
               {ADMIN_TRANSITIONS[v.status] && (
                 <div className="mt-3 flex gap-2 flex-wrap items-center">
                   {v.status === 'Requested' && (
-                    <input type="date" className="border px-2 py-1 rounded text-sm"
+                    <input type="date" className="input max-w-44"
                       value={scheduleInputs[v._id] || ''}
                       onChange={(e) => setScheduleInputs({ ...scheduleInputs, [v._id]: e.target.value })} />
                   )}
@@ -66,14 +64,14 @@ export default function AdminVisitsPage() {
                     <button key={s} onClick={() => {
                       const extra = s === 'Scheduled' ? { scheduledDate: scheduleInputs[v._id] } : {};
                       updateStatus(v._id, s, extra);
-                    }} className="text-xs bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded">{s}</button>
+                    }} className="btn btn-secondary">{s}</button>
                   ))}
                 </div>
               )}
 
-              {v.status === 'Interested' && (
-                <p className="mt-2 text-xs text-green-400">
-                  Visit accepted. Tenant can now click <strong>Initiate Move-In</strong> on their My Visits page.
+              {['Visited', 'Interested', 'NotInterested'].includes(v.status) && (
+                <p className="mt-2 text-xs muted">
+                  Tenant now controls visit completion and interest decisions.
                 </p>
               )}
             </div>

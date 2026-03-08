@@ -116,6 +116,18 @@ const getMyExtensions = async (req, res, next) => {
   }
 };
 
+const getEligibleMoveIns = async (req, res, next) => {
+  try {
+    const moveIns = await MoveIn.find({ tenant: req.user.clerkId, status: 'completed' })
+      .populate('listing', 'title locationText moveInDate')
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({ success: true, count: moveIns.length, data: moveIns });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // ---------- admin: view all extension requests ----------
 
 const getAllExtensions = async (req, res, next) => {
@@ -177,6 +189,7 @@ module.exports = {
   createExtensionRequest,
   cancelExtensionRequest,
   getMyExtensions,
+  getEligibleMoveIns,
   getAllExtensions,
   adminDecideExtension,
 };

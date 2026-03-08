@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const dotenv = require('dotenv');
+const path = require('path');
 const { clerkMiddleware } = require('@clerk/express');
 
 const listingRoutes = require('./routes/listingRoutes');
@@ -21,6 +22,7 @@ app.use(cors({ origin: process.env.FRONTEND_URL || '*' }));
 app.use(express.json());
 app.use(morgan('dev'));
 app.use(clerkMiddleware());
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 app.get('/api/health', (req, res) => {
   res.status(200).json({ success: true, message: 'API is healthy' });

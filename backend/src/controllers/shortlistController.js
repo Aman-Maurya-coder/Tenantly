@@ -4,6 +4,31 @@ const Listing = require('../models/Listing');
 const MAX_SHORTLIST = 10;
 const MAX_COMPARE = 3;
 
+const getStartOfToday = () => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today;
+};
+
+const enrichListingState = (listing, tenantId) => {
+  const listingData = listing.toObject ? listing.toObject() : listing;
+  const isExpired = new Date(listingData.moveInDate) < getStartOfToday();
+  const isReserved = Boolean(listingData.reservedForTenant);
+  const reservedForCurrentTenant = listingData.reservedForTenant === tenantId;
+  const unavailableToCurrentTenant = isReserved && !reservedForCurrentTenant;
+
+  return {
+    ...listingData,
+    listingState: {
+      isExpired,
+      isReserved,
+      reservedForCurrentTenant,
+      unavailableToCurrentTenant,
+      canRequestVisit: !isExpired && !unavailableToCurrentTenant && listingData.status === 'Published',
+    },
+  };
+};
+
 // Add a listing to shortlist
 const addToShortlist = async (req, res, next) => {
   try {
@@ -17,6 +42,12 @@ const addToShortlist = async (req, res, next) => {
     const listing = await Listing.findById(listingId);
     if (!listing || listing.status !== 'Published') {
       return res.status(404).json({ success: false, message: 'Published listing not found' });
+    }
+    if (listing.moveInDate < getStartOfToday()) {
+      return res.status(400).json({ success: false, message: 'Expired listings cannot be shortlisted' });
+    }
+    if (listing.reservedForTenant && listing.reservedForTenant !== req.user.clerkId) {
+      return res.status(409).json({ success: false, message: 'Listing is reserved for another tenant' });
     }
 
     // Check if already shortlisted
@@ -76,11 +107,15 @@ const removeFromShortlist = async (req, res, next) => {
 const getMyShortlist = async (req, res, next) => {
   try {
     const entries = await Shortlist.find({ tenant: req.user.clerkId })
-      .populate('listing', 'title description locationText budget moveInDate amenities status')
+      .populate('listing', 'title description locationText budget moveInDate amenities status reservedForTenant reservationVisit')
       .sort({ createdAt: -1 });
 
-    // Filter out any listings that are no longer published
-    const active = entries.filter((e) => e.listing && e.listing.status === 'Published');
+    const active = entries
+      .filter((entry) => entry.listing)
+      .map((entry) => ({
+        ...entry.toObject(),
+        listing: enrichListingState(entry.listing, req.user.clerkId),
+      }));
 
     return res.status(200).json({
       success: true,
@@ -129,8 +164,7 @@ const compareListings = async (req, res, next) => {
     // Fetch full listing details
     const listings = await Listing.find({
       _id: { $in: listingIds },
-      status: 'Published',
-    }).select('title description locationText budget moveInDate amenities createdAt');
+    }).select('title description locationText budget moveInDate amenities createdAt status reservedForTenant reservationVisit');
 
     if (listings.length < 2) {
       return res.status(400).json({
@@ -142,7 +176,7 @@ const compareListings = async (req, res, next) => {
     return res.status(200).json({
       success: true,
       count: listings.length,
-      data: listings,
+      data: listings.map((listing) => enrichListingState(listing, req.user.clerkId)),
     });
   } catch (error) {
     next(error);

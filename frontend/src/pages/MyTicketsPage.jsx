@@ -44,44 +44,44 @@ export default function MyTicketsPage() {
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold">My Support Tickets</h2>
-        <button onClick={() => setShowForm(!showForm)} className="bg-blue-600 text-white px-4 py-2 rounded text-sm">
+        <h2 className="text-3xl font-bold">My Support Tickets</h2>
+        <button onClick={() => setShowForm(!showForm)} className="btn btn-primary">
           {showForm ? 'Cancel' : '+ New Ticket'}
         </button>
       </div>
 
       {showForm && (
-        <div className="bg-white p-4 rounded shadow mb-6 space-y-3">
-          <input placeholder="Subject" className="border px-3 py-2 rounded w-full" value={form.subject}
+        <div className="surface-card p-4 mb-6 space-y-3">
+          <input placeholder="Subject" className="input" value={form.subject}
             onChange={(e) => setForm({ ...form, subject: e.target.value })} />
-          <select className="border px-3 py-2 rounded w-full" value={form.category}
+          <select className="select" value={form.category}
             onChange={(e) => setForm({ ...form, category: e.target.value })}>
             <option value="general">General</option>
             <option value="visit">Visit</option>
             <option value="listing">Listing</option>
             <option value="move-in">Move-In</option>
           </select>
-          <textarea placeholder="Describe your issue..." rows="3" className="border px-3 py-2 rounded w-full" value={form.message}
+          <textarea placeholder="Describe your issue..." rows="3" className="textarea" value={form.message}
             onChange={(e) => setForm({ ...form, message: e.target.value })} />
-          <button onClick={create} className="bg-blue-600 text-white px-4 py-2 rounded">Submit</button>
+          <button onClick={create} className="btn btn-primary">Submit</button>
         </div>
       )}
 
-      {msg && <p className="text-sm text-green-600 mb-2">{msg}</p>}
+      {msg && <p className="text-sm mb-2" style={{ color: 'var(--color-success)' }}>{msg}</p>}
 
-      {tickets.length === 0 ? <p className="text-gray-500">No tickets yet.</p> : (
+      {tickets.length === 0 ? <p className="muted">No tickets yet.</p> : (
         <div className="space-y-3">
           {tickets.map((t) => (
-            <Link to={`/ticket/${t._id}`} key={t._id} className="bg-white p-4 rounded shadow block hover:shadow-md">
+            <Link to={`/ticket/${t._id}`} key={t._id} className="surface-card p-4 block">
               <div className="flex justify-between items-center">
                 <div>
                   <p className="font-semibold">{t.subject}</p>
-                  <p className="text-xs text-gray-400">{t.category} · {new Date(t.updatedAt).toLocaleDateString()}</p>
+                  <p className="text-xs muted">{t.category} · {new Date(t.updatedAt).toLocaleDateString()}</p>
                 </div>
                 <div className="flex gap-2 items-center">
                   <span className={`text-xs px-2 py-1 rounded ${STATUS_COLORS[t.status]}`}>{t.status}</span>
                   {t.status === 'resolved' && (
-                    <button onClick={(e) => { e.preventDefault(); reopen(t._id); }} className="text-xs text-orange-600 hover:underline">Reopen</button>
+                    <button onClick={(e) => { e.preventDefault(); reopen(t._id); }} className="btn btn-secondary">Reopen</button>
                   )}
                 </div>
               </div>

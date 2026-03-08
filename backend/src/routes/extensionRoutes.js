@@ -3,6 +3,7 @@ const {
   createExtensionRequest,
   cancelExtensionRequest,
   getMyExtensions,
+  getEligibleMoveIns,
   getAllExtensions,
   adminDecideExtension,
 } = require('../controllers/extensionController');
@@ -18,6 +19,7 @@ const router = express.Router();
 // Tenant routes
 router.post('/', authenticate, attachUser, requireTenant, createExtensionRequest);
 router.get('/mine', authenticate, attachUser, requireTenant, getMyExtensions);
+router.get('/eligible', authenticate, attachUser, requireTenant, getEligibleMoveIns);
 router.patch('/:id/cancel', authenticate, attachUser, requireTenant, cancelExtensionRequest);
 
 // Admin routes

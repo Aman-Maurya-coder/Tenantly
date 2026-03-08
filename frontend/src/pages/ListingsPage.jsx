@@ -28,39 +28,94 @@ export default function ListingsPage() {
 
   useEffect(() => { fetchListings(); }, []);
 
+  const cardState = (listing) => {
+    if (listing?.reservation?.unavailableToCurrentTenant) {
+      return { label: 'Reserved', className: 'badge badge-warning', disabled: true };
+    }
+    return { label: 'Available', className: 'badge badge-success', disabled: false };
+  };
+
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-4 text-gray-100">Browse Listings</h2>
+      <h2 className="text-3xl font-bold mb-4">Browse Listings</h2>
 
-      <div className="flex flex-wrap gap-3 mb-6 bg-zinc-900 p-4 rounded shadow border border-zinc-800">
-        <input placeholder="Location" className="border px-3 py-2 rounded flex-1 min-w-36"
-          value={filters.locationText} onChange={(e) => setFilters({ ...filters, locationText: e.target.value })} />
-        <input placeholder="Min Budget" type="number" className="border px-3 py-2 rounded w-32"
-          value={filters.minBudget} onChange={(e) => setFilters({ ...filters, minBudget: e.target.value })} />
-        <input placeholder="Max Budget" type="number" className="border px-3 py-2 rounded w-32"
-          value={filters.maxBudget} onChange={(e) => setFilters({ ...filters, maxBudget: e.target.value })} />
-        <input type="date" className="border px-3 py-2 rounded"
-          value={filters.moveInDate} onChange={(e) => setFilters({ ...filters, moveInDate: e.target.value })} />
-        <button onClick={fetchListings} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Search</button>
-      </div>
+      <section className="surface-card p-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+          <input
+            aria-label="Location filter"
+            placeholder="Location"
+            className="input md:col-span-2"
+            value={filters.locationText}
+            onChange={(e) => setFilters({ ...filters, locationText: e.target.value })}
+          />
+          <input
+            aria-label="Minimum budget filter"
+            placeholder="Min Budget"
+            type="number"
+            className="input"
+            value={filters.minBudget}
+            onChange={(e) => setFilters({ ...filters, minBudget: e.target.value })}
+          />
+          <input
+            aria-label="Maximum budget filter"
+            placeholder="Max Budget"
+            type="number"
+            className="input"
+            value={filters.maxBudget}
+            onChange={(e) => setFilters({ ...filters, maxBudget: e.target.value })}
+          />
+          <input
+            aria-label="Move in date filter"
+            type="date"
+            className="input"
+            value={filters.moveInDate}
+            onChange={(e) => setFilters({ ...filters, moveInDate: e.target.value })}
+          />
+        </div>
+        <div className="mt-3">
+          <button onClick={fetchListings} className="btn btn-primary">Search listings</button>
+        </div>
+      </section>
 
-      {error && <p className="text-sm text-red-400 mb-4">{error}</p>}
+      {error && <p className="text-sm mb-4" style={{ color: 'var(--color-error)' }}>{error}</p>}
 
-      {loading ? <p>Loading...</p> : listings.length === 0 ? <p className="text-gray-500">No listings found. Only Published listings are shown on this page.</p> : (
+      {loading ? (
+        <p className="muted">Loading listings...</p>
+      ) : listings.length === 0 ? (
+        <p className="muted">No listings found.</p>
+      ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {listings.map((l) => (
-            <Link to={`/listings/${l._id}`} key={l._id} className="bg-zinc-900 border border-zinc-800 p-4 rounded shadow hover:shadow-md transition">
-              <h3 className="text-lg font-semibold">{l.title}</h3>
-              <p className="text-gray-500 text-sm">{l.locationText}</p>
-              <p className="text-blue-600 font-bold mt-2">₹{l.budget}/mo</p>
-              <p className="text-xs text-gray-400 mt-1">Move-in: {new Date(l.moveInDate).toLocaleDateString()}</p>
-              {l.amenities?.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {l.amenities.map((a, i) => <span key={i} className="text-xs bg-gray-100 px-2 py-0.5 rounded">{a}</span>)}
+          {listings.map((listing) => {
+            const state = cardState(listing);
+            const cardContent = (
+              <article className={`surface-card p-4 h-full ${state.disabled ? 'opacity-70' : ''}`}>
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="text-xl font-semibold">{listing.title}</h3>
+                  <span className={state.className}>{state.label}</span>
                 </div>
-              )}
-            </Link>
-          ))}
+                <p className="muted text-sm">{listing.locationText}</p>
+                <p className="font-bold mt-2">₹{listing.budget}/month</p>
+                <p className="text-sm muted mt-1">Move-in: {new Date(listing.moveInDate).toLocaleDateString()}</p>
+                {listing.amenities?.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-3">
+                    {listing.amenities.map((amenity, index) => (
+                      <span key={index} className="badge badge-info">{amenity}</span>
+                    ))}
+                  </div>
+                )}
+              </article>
+            );
+
+            if (state.disabled) {
+              return <div key={listing._id}>{cardContent}</div>;
+            }
+
+            return (
+              <Link to={`/listings/${listing._id}`} key={listing._id} aria-label={`Open ${listing.title}`}>
+                {cardContent}
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>

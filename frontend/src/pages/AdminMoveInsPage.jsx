@@ -14,18 +14,18 @@ export default function AdminMoveInsPage() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-4">Manage Move-Ins</h2>
-      {moveIns.length === 0 ? <p className="text-gray-500">No move-ins.</p> : (
+      <h2 className="text-3xl font-bold mb-4">Manage Move-Ins</h2>
+      {moveIns.length === 0 ? <p className="muted">No move-ins.</p> : (
         <div className="space-y-3">
           {moveIns.map((m) => (
-            <Link to={`/move-in/${m._id}`} key={m._id} className="bg-white p-4 rounded shadow block hover:shadow-md">
+            <Link to={`/move-in/${m._id}`} key={m._id} className="surface-card p-4 block">
               <div className="flex justify-between items-center">
                 <div>
                   <p className="font-semibold">{m.listing?.title || 'Listing'}</p>
-                  <p className="text-sm text-gray-500">Tenant: {m.tenant}</p>
-                  <p className="text-xs text-gray-400">{new Date(m.createdAt).toLocaleDateString()}</p>
+                  <p className="text-sm muted">Tenant: {m.tenant}</p>
+                  <p className="text-xs muted">{new Date(m.createdAt).toLocaleDateString()}</p>
                 </div>
-                <span className="text-sm font-medium text-blue-600">{m.status}</span>
+                <span className="badge badge-info">{m.status}</span>
               </div>
             </Link>
           ))}

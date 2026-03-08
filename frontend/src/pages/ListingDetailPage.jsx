@@ -7,69 +7,84 @@ export default function ListingDetailPage() {
   const { id } = useParams();
   const { user } = useUser();
   const [listing, setListing] = useState(null);
-  const [visitDate, setVisitDate] = useState('');
-  const [visitNote, setVisitNote] = useState('');
+  const [isShortlisted, setIsShortlisted] = useState(false);
+  const [addingShortlist, setAddingShortlist] = useState(false);
   const [msg, setMsg] = useState('');
+  const [error, setError] = useState('');
 
   useEffect(() => {
     api.get(`/listings/${id}`).then((r) => setListing(r.data.data)).catch(console.error);
   }, [id]);
 
-  const requestVisit = async () => {
+  useEffect(() => {
+    if (user?.role !== 'tenant') return;
     try {
-      await api.post('/visits', { listingId: id, requestedDate: visitDate, tenantNotes: visitNote });
-      setMsg('Visit requested!');
-      setVisitDate('');
-      setVisitNote('');
-    } catch (e) {
-      setMsg(e.response?.data?.message || 'Error');
+      api.get('/shortlist').then((response) => {
+        const found = response.data.data.some((entry) => entry.listing?._id === id);
+        setIsShortlisted(found);
+      }).catch(() => {});
+    } catch (_error) {
+      setIsShortlisted(false);
     }
-  };
+  }, [id, user?.role]);
 
   const addToShortlist = async () => {
     try {
+      setAddingShortlist(true);
+      setError('');
       await api.post('/shortlist', { listingId: id });
-      setMsg('Added to shortlist!');
+      setMsg('Added to shortlist. Request a visit from your shortlist.');
+      setIsShortlisted(true);
     } catch (e) {
-      setMsg(e.response?.data?.message || 'Error');
+      setError(e.response?.data?.message || 'Unable to add to shortlist');
+    } finally {
+      setAddingShortlist(false);
     }
   };
 
   if (!listing) return <p>Loading...</p>;
+  const unavailable = listing?.reservation?.unavailableToCurrentTenant;
 
   return (
-    <div className="bg-white p-6 rounded shadow max-w-3xl mx-auto">
-      <h2 className="text-2xl font-bold">{listing.title}</h2>
-      <p className="text-gray-500">{listing.locationText}</p>
-      <p className="text-blue-600 font-bold text-xl mt-2">₹{listing.budget}/mo</p>
-      <p className="text-gray-600 mt-4">{listing.description}</p>
-      <p className="text-sm text-gray-400 mt-2">Move-in date: {new Date(listing.moveInDate).toLocaleDateString()}</p>
+    <div className="surface-card p-6 max-w-3xl mx-auto">
+      <div className="flex items-start justify-between gap-3">
+        <h2 className="text-3xl font-bold">{listing.title}</h2>
+        {unavailable ? (
+          <span className="badge badge-warning">Reserved</span>
+        ) : (
+          <span className="badge badge-success">Available</span>
+        )}
+      </div>
+      <p className="muted">{listing.locationText}</p>
+      <p className="font-bold text-2xl mt-2">₹{listing.budget}/month</p>
+      <p className="mt-4">{listing.description}</p>
+      <p className="text-sm muted mt-2">Move-in date: {new Date(listing.moveInDate).toLocaleDateString()}</p>
 
       {listing.amenities?.length > 0 && (
         <div className="mt-4">
-          <h4 className="font-semibold text-sm mb-1">Amenities</h4>
+          <h4 className="font-semibold text-sm mb-2">Amenities</h4>
           <div className="flex flex-wrap gap-2">
-            {listing.amenities.map((a, i) => <span key={i} className="bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded">{a}</span>)}
+            {listing.amenities.map((amenity, index) => <span key={index} className="badge badge-info">{amenity}</span>)}
           </div>
         </div>
       )}
 
       {user?.role === 'tenant' && (
-        <div className="mt-6 border-t pt-4 space-y-4">
-          <div>
-            <h4 className="font-semibold mb-2">Request Visit</h4>
-            <div className="flex gap-2 flex-wrap">
-              <input type="date" className="border px-3 py-2 rounded" value={visitDate} onChange={(e) => setVisitDate(e.target.value)} />
-              <input placeholder="Notes (optional)" className="border px-3 py-2 rounded flex-1" value={visitNote} onChange={(e) => setVisitNote(e.target.value)} />
-              <button onClick={requestVisit} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Request</button>
-            </div>
-          </div>
-
-          <button onClick={addToShortlist} className="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600">★ Shortlist</button>
+        <div className="mt-6 border-t pt-4" style={{ borderColor: 'var(--color-border)' }}>
+          <h4 className="font-semibold mb-2">Shortlist first</h4>
+          <p className="text-sm muted mb-3">Visits can only be requested from the shortlist page.</p>
+          <button
+            onClick={addToShortlist}
+            className={isShortlisted ? 'btn btn-secondary' : 'btn btn-primary'}
+            disabled={isShortlisted || unavailable || addingShortlist}
+          >
+            {isShortlisted ? 'Already shortlisted' : addingShortlist ? 'Adding...' : 'Add to shortlist'}
+          </button>
         </div>
       )}
 
-      {msg && <p className="mt-4 text-sm text-green-600">{msg}</p>}
+      {msg && <p className="mt-4 text-sm" style={{ color: 'var(--color-success)' }}>{msg}</p>}
+      {error && <p className="mt-2 text-sm" style={{ color: 'var(--color-error)' }}>{error}</p>}
     </div>
   );
 }

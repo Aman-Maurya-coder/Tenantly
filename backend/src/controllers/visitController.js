@@ -7,15 +7,26 @@ const TERMINAL_STATES = ['Interested', 'NotInterested', 'Cancelled'];
 // Admin-only transitions
 const ADMIN_TRANSITIONS = {
   Requested: ['Scheduled'],
-  Scheduled: ['Visited'],
-  Visited: ['Interested', 'NotInterested'],
   CancelRequested: ['Cancelled'],
 };
 
-// Tenant-only transitions (cancel request)
-const TENANT_TRANSITIONS = {
+const TENANT_CANCEL_TRANSITIONS = {
   Requested: ['CancelRequested'],
   Scheduled: ['CancelRequested'],
+};
+
+const TENANT_VISIT_TRANSITIONS = {
+  Scheduled: ['Visited'],
+};
+
+const TENANT_DECISION_TRANSITIONS = {
+  Visited: ['Interested', 'NotInterested'],
+};
+
+const getStartOfToday = () => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today;
 };
 
 // Tenant creates a visit request
@@ -36,6 +47,18 @@ const createVisitRequest = async (req, res, next) => {
       return res.status(404).json({
         success: false,
         message: 'Published listing not found',
+      });
+    }
+    if (listing.moveInDate < getStartOfToday()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot request a visit for an expired listing',
+      });
+    }
+    if (listing.reservedForTenant && listing.reservedForTenant !== req.user.clerkId) {
+      return res.status(409).json({
+        success: false,
+        message: 'Listing is reserved for another tenant',
       });
     }
 
@@ -110,7 +133,7 @@ const getAllVisitRequests = async (req, res, next) => {
   }
 };
 
-// Admin updates visit status (schedule, mark visited, set decision)
+// Admin updates visit status (schedule and cancel confirmation only)
 const adminUpdateVisitStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -176,7 +199,7 @@ const tenantRequestCancel = async (req, res, next) => {
     }
 
     // Validate tenant transition
-    const allowed = TENANT_TRANSITIONS[visit.status] || [];
+    const allowed = TENANT_CANCEL_TRANSITIONS[visit.status] || [];
     if (!allowed.includes('CancelRequested')) {
       return res.status(400).json({
         success: false,
@@ -197,10 +220,108 @@ const tenantRequestCancel = async (req, res, next) => {
   }
 };
 
+// Tenant marks a scheduled visit as visited
+const tenantMarkVisited = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const visit = await VisitRequest.findById(id);
+    if (!visit) {
+      return res.status(404).json({ success: false, message: 'Visit request not found' });
+    }
+    if (visit.tenant !== req.user.clerkId) {
+      return res.status(403).json({ success: false, message: 'Not your visit request' });
+    }
+
+    const allowed = TENANT_VISIT_TRANSITIONS[visit.status] || [];
+    if (!allowed.includes('Visited')) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot mark visited from status: ${visit.status}`,
+      });
+    }
+
+    visit.status = 'Visited';
+    await visit.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Visit marked as visited',
+      data: visit,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Tenant decides interest after visit
+const tenantSetInterest = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!['Interested', 'NotInterested'].includes(status)) {
+      return res.status(400).json({ success: false, message: 'status must be Interested or NotInterested' });
+    }
+
+    const visit = await VisitRequest.findById(id);
+    if (!visit) {
+      return res.status(404).json({ success: false, message: 'Visit request not found' });
+    }
+    if (visit.tenant !== req.user.clerkId) {
+      return res.status(403).json({ success: false, message: 'Not your visit request' });
+    }
+
+    const allowed = TENANT_DECISION_TRANSITIONS[visit.status] || [];
+    if (!allowed.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot set ${status} from status: ${visit.status}`,
+      });
+    }
+
+    const listing = await Listing.findById(visit.listing);
+    if (!listing) {
+      return res.status(404).json({ success: false, message: 'Listing not found' });
+    }
+
+    if (status === 'Interested') {
+      if (listing.reservedForTenant && listing.reservedForTenant !== req.user.clerkId) {
+        return res.status(409).json({
+          success: false,
+          message: 'Listing is already reserved for another tenant',
+        });
+      }
+      listing.reservedForTenant = req.user.clerkId;
+      listing.reservationVisit = visit._id;
+      await listing.save();
+    }
+
+    if (status === 'NotInterested' && listing.reservedForTenant === req.user.clerkId) {
+      listing.reservedForTenant = null;
+      listing.reservationVisit = null;
+      await listing.save();
+    }
+
+    visit.status = status;
+    await visit.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `Visit status updated to ${status}`,
+      data: visit,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createVisitRequest,
   getMyVisitRequests,
   getAllVisitRequests,
   adminUpdateVisitStatus,
   tenantRequestCancel,
+  tenantMarkVisited,
+  tenantSetInterest,
 };

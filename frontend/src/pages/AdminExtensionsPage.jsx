@@ -28,27 +28,27 @@ export default function AdminExtensionsPage() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-4">Manage Extensions</h2>
-      {extensions.length === 0 ? <p className="text-gray-500">No extension requests.</p> : (
+      <h2 className="text-3xl font-bold mb-4">Manage Extensions</h2>
+      {extensions.length === 0 ? <p className="muted">No extension requests.</p> : (
         <div className="space-y-3">
           {extensions.map((e) => (
-            <div key={e._id} className="bg-white p-4 rounded shadow">
+            <div key={e._id} className="surface-card p-4">
               <div className="flex justify-between items-start">
                 <div>
                   <p className="font-semibold">{e.listing?.title || 'Listing'}</p>
-                  <p className="text-sm text-gray-500">Tenant: {e.tenant}</p>
-                  <p className="text-xs text-gray-400">
+                  <p className="text-sm muted">Tenant: {e.tenant}</p>
+                  <p className="text-xs muted">
                     {new Date(e.currentEndDate).toLocaleDateString()} → {new Date(e.requestedEndDate).toLocaleDateString()}
                   </p>
-                  <p className="text-xs text-gray-400">{e.reason}</p>
+                  <p className="text-xs muted">{e.reason}</p>
                 </div>
                 <span className={`text-xs px-2 py-1 rounded ${STATUS_COLORS[e.status]}`}>{e.status}</span>
               </div>
 
               {e.status === 'pending' && (
                 <div className="mt-3 flex gap-2">
-                  <button onClick={() => decide(e._id, 'approved')} className="text-xs bg-green-100 hover:bg-green-200 px-3 py-1 rounded">Approve</button>
-                  <button onClick={() => decide(e._id, 'rejected')} className="text-xs bg-red-100 hover:bg-red-200 px-3 py-1 rounded">Reject</button>
+                  <button onClick={() => decide(e._id, 'approved')} className="btn btn-primary">Approve</button>
+                  <button onClick={() => decide(e._id, 'rejected')} className="btn btn-danger">Reject</button>
                 </div>
               )}
             </div>

@@ -6,7 +6,16 @@ export default function AdminListingsPage() {
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ title: '', description: '', locationText: '', budget: '', moveInDate: '', amenities: '', status: 'Draft' });
+  const [form, setForm] = useState({
+    title: '',
+    description: '',
+    locationText: '',
+    budget: '',
+    moveInDate: '',
+    amenities: '',
+    inventoryTemplate: '',
+    status: 'Draft',
+  });
   const [editId, setEditId] = useState(null);
   const [msg, setMsg] = useState('');
 
@@ -16,7 +25,16 @@ export default function AdminListingsPage() {
   useEffect(fetch, []);
 
   const resetForm = () => {
-    setForm({ title: '', description: '', locationText: '', budget: '', moveInDate: '', amenities: '', status: 'Draft' });
+    setForm({
+      title: '',
+      description: '',
+      locationText: '',
+      budget: '',
+      moveInDate: '',
+      amenities: '',
+      inventoryTemplate: '',
+      status: 'Draft',
+    });
     setEditId(null);
     setShowForm(false);
   };
@@ -26,6 +44,7 @@ export default function AdminListingsPage() {
       ...form,
       budget: Number(form.budget),
       amenities: form.amenities.split(',').map((a) => a.trim()).filter(Boolean),
+      inventoryTemplate: form.inventoryTemplate.split(',').map((item) => item.trim()).filter(Boolean),
     };
     try {
       if (editId) {
@@ -48,6 +67,7 @@ export default function AdminListingsPage() {
       budget: l.budget,
       moveInDate: l.moveInDate?.slice(0, 10),
       amenities: l.amenities?.join(', ') || '',
+      inventoryTemplate: l.inventoryTemplate?.map((entry) => entry.item).join(', ') || '',
       status: l.status,
     });
     setEditId(l._id);
@@ -73,54 +93,63 @@ export default function AdminListingsPage() {
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold">Manage Listings</h2>
-        <button onClick={() => { resetForm(); setShowForm(!showForm); }} className="bg-blue-600 text-white px-4 py-2 rounded text-sm">
+        <h2 className="text-3xl font-bold">Manage Listings</h2>
+        <button onClick={() => { resetForm(); setShowForm(!showForm); }} className="btn btn-primary">
           {showForm ? 'Cancel' : '+ New Listing'}
         </button>
       </div>
 
       {showForm && (
-        <div className="bg-white p-4 rounded shadow mb-6 space-y-3">
-          <input placeholder="Title" className="border px-3 py-2 rounded w-full" value={form.title}
+        <div className="surface-card p-4 mb-6 space-y-3">
+          <input placeholder="Title" className="input" value={form.title}
             onChange={(e) => setForm({ ...form, title: e.target.value })} />
-          <textarea placeholder="Description" rows="3" className="border px-3 py-2 rounded w-full" value={form.description}
+          <textarea placeholder="Description" rows="3" className="textarea" value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })} />
           <div className="grid grid-cols-2 gap-3">
-            <input placeholder="Location" className="border px-3 py-2 rounded" value={form.locationText}
+            <input placeholder="Location" className="input" value={form.locationText}
               onChange={(e) => setForm({ ...form, locationText: e.target.value })} />
-            <input placeholder="Budget (₹)" type="number" className="border px-3 py-2 rounded" value={form.budget}
+            <input placeholder="Budget (₹)" type="number" className="input" value={form.budget}
               onChange={(e) => setForm({ ...form, budget: e.target.value })} />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <input type="date" className="border px-3 py-2 rounded" value={form.moveInDate}
+            <input type="date" className="input" value={form.moveInDate}
               onChange={(e) => setForm({ ...form, moveInDate: e.target.value })} />
-            <input placeholder="Amenities (comma-separated)" className="border px-3 py-2 rounded" value={form.amenities}
+            <input placeholder="Amenities (comma-separated)" className="input" value={form.amenities}
               onChange={(e) => setForm({ ...form, amenities: e.target.value })} />
           </div>
+          <input
+            placeholder="Inventory checklist items (comma-separated)"
+            className="input"
+            value={form.inventoryTemplate}
+            onChange={(e) => setForm({ ...form, inventoryTemplate: e.target.value })}
+          />
           {editId && (
-            <select className="border px-3 py-2 rounded w-full" value={form.status}
+            <select className="select" value={form.status}
               onChange={(e) => setForm({ ...form, status: e.target.value })}>
               <option value={form.status}>{form.status} (current)</option>
               {(VALID_TRANSITIONS[form.status] || []).map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           )}
-          <button onClick={save} className="bg-blue-600 text-white px-4 py-2 rounded">{editId ? 'Update' : 'Create'}</button>
+          <button onClick={save} className="btn btn-primary">{editId ? 'Update' : 'Create'}</button>
         </div>
       )}
 
-      {msg && <p className="text-sm text-green-600 mb-2">{msg}</p>}
+      {msg && <p className="text-sm mb-2" style={{ color: 'var(--color-success)' }}>{msg}</p>}
 
       <div className="space-y-3">
         {listings.map((l) => (
-          <div key={l._id} className="bg-white p-4 rounded shadow flex justify-between items-center">
+          <div key={l._id} className="surface-card p-4 flex justify-between items-center gap-3">
             <div>
               <p className="font-semibold">{l.title}</p>
-              <p className="text-sm text-gray-500">{l.locationText} — ₹{l.budget}/mo</p>
-              <p className="text-xs text-gray-400">Status: {l.status} · {new Date(l.moveInDate).toLocaleDateString()}</p>
+              <p className="text-sm muted">{l.locationText} — ₹{l.budget}/month</p>
+              <p className="text-xs muted">Status: {l.status} · {new Date(l.moveInDate).toLocaleDateString()}</p>
+              <p className="text-xs muted">
+                Inventory: {(l.inventoryTemplate || []).map((item) => item.item).join(', ') || 'Not set'}
+              </p>
             </div>
             <div className="flex gap-2">
-              <button onClick={() => startEdit(l)} className="text-xs text-blue-600 hover:underline">Edit</button>
-              <button onClick={() => deleteListing(l._id)} className="text-xs text-red-600 hover:underline">Delete</button>
+              <button onClick={() => startEdit(l)} className="btn btn-secondary">Edit</button>
+              <button onClick={() => deleteListing(l._id)} className="btn btn-danger">Delete</button>
             </div>
           </div>
         ))}

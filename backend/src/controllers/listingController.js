@@ -8,9 +8,55 @@ const VALID_TRANSITIONS = {
   Published: ['Draft'],
 };
 
+const getStartOfToday = () => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today;
+};
+
+const normalizeInventoryTemplate = (inventoryTemplate) => {
+  if (!Array.isArray(inventoryTemplate)) {
+    return [];
+  }
+
+  return inventoryTemplate
+    .map((entry) => (typeof entry === 'string' ? entry : entry?.item))
+    .map((item) => (item || '').trim())
+    .filter(Boolean)
+    .map((item) => ({ item }));
+};
+
+const getRoleAndTenant = async (req) => {
+  if (!req.auth?.userId) {
+    return { role: null, tenantId: null };
+  }
+
+  const dbUser = await User.findOne({ clerkId: req.auth.userId }).select('role clerkId');
+  return {
+    role: dbUser?.role || null,
+    tenantId: dbUser?.clerkId || req.auth.userId,
+  };
+};
+
+const withReservationState = (listing, tenantId) => {
+  const listingData = listing.toObject();
+  const isReserved = Boolean(listingData.reservedForTenant);
+  const isOwnedByCurrentTenant = tenantId && listingData.reservedForTenant === tenantId;
+  const isUnavailableToCurrentTenant = isReserved && !isOwnedByCurrentTenant;
+
+  return {
+    ...listingData,
+    reservation: {
+      isReserved,
+      reservedForCurrentTenant: Boolean(isOwnedByCurrentTenant),
+      unavailableToCurrentTenant: Boolean(isUnavailableToCurrentTenant),
+    },
+  };
+};
+
 const createListing = async (req, res, next) => {
   try {
-    const { title, description, locationText, budget, moveInDate } = req.body;
+    const { title, description, locationText, budget, moveInDate, inventoryTemplate } = req.body;
 
     if (!title || !description || !locationText || budget === undefined || !moveInDate) {
       return res.status(400).json({
@@ -27,6 +73,7 @@ const createListing = async (req, res, next) => {
       moveInDate,
       status: 'Draft',
       createdBy: req.user.clerkId,
+      inventoryTemplate: normalizeInventoryTemplate(inventoryTemplate),
     });
 
     return res.status(201).json({
@@ -43,16 +90,12 @@ const getAllListings = async (req, res, next) => {
   try {
     const { locationText, minBudget, maxBudget, moveInDate } = req.query;
     const filter = {};
-    let role = null;
-
-    if (req.auth?.userId) {
-      const dbUser = await User.findOne({ clerkId: req.auth.userId }).select('role');
-      role = dbUser?.role || null;
-    }
+    const { role, tenantId } = await getRoleAndTenant(req);
 
     // Public browse only sees published listings unless admin
     if (role !== 'admin') {
       filter.status = 'Published';
+      filter.moveInDate = { ...(filter.moveInDate || {}), $gte: getStartOfToday() };
     }
 
     if (locationText) {
@@ -65,14 +108,16 @@ const getAllListings = async (req, res, next) => {
       filter.budget = { ...filter.budget, $lte: Number(maxBudget) };
     }
     if (moveInDate) {
-      filter.moveInDate = { $lte: new Date(moveInDate) };
+      filter.moveInDate = { ...(filter.moveInDate || {}), $lte: new Date(moveInDate) };
     }
 
     const listings = await Listing.find(filter).sort({ createdAt: -1 });
+    const responseListings = listings.map((listing) => withReservationState(listing, tenantId));
+
     return res.status(200).json({
       success: true,
-      count: listings.length,
-      data: listings,
+      count: responseListings.length,
+      data: responseListings,
     });
   } catch (error) {
     next(error);
@@ -83,23 +128,19 @@ const getListingById = async (req, res, next) => {
   try {
     const { id } = req.params;
     const listing = await Listing.findById(id);
-    let role = null;
-
-    if (req.auth?.userId) {
-      const dbUser = await User.findOne({ clerkId: req.auth.userId }).select('role');
-      role = dbUser?.role || null;
-    }
+    const { role, tenantId } = await getRoleAndTenant(req);
 
     if (!listing) {
       return res.status(404).json({ success: false, message: 'Listing not found' });
     }
 
-    // Non-admin can only see published listings
-    if (listing.status !== 'Published' && role !== 'admin') {
+    // Non-admin can only see published and non-expired listings
+    const isExpired = listing.moveInDate < getStartOfToday();
+    if ((listing.status !== 'Published' || isExpired) && role !== 'admin') {
       return res.status(404).json({ success: false, message: 'Listing not found' });
     }
 
-    return res.status(200).json({ success: true, data: listing });
+    return res.status(200).json({ success: true, data: withReservationState(listing, tenantId) });
   } catch (error) {
     next(error);
   }
@@ -108,7 +149,17 @@ const getListingById = async (req, res, next) => {
 const updateListing = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { title, description, locationText, budget, moveInDate, status } = req.body;
+    const {
+      title,
+      description,
+      locationText,
+      budget,
+      moveInDate,
+      status,
+      inventoryTemplate,
+      reservedForTenant,
+      reservationVisit,
+    } = req.body;
 
     const listing = await Listing.findById(id);
     if (!listing) {
@@ -133,6 +184,15 @@ const updateListing = async (req, res, next) => {
     if (budget !== undefined) listing.budget = budget;
     if (moveInDate !== undefined) listing.moveInDate = moveInDate;
     if (status !== undefined) listing.status = status;
+    if (inventoryTemplate !== undefined) {
+      listing.inventoryTemplate = normalizeInventoryTemplate(inventoryTemplate);
+    }
+    if (reservedForTenant !== undefined) {
+      listing.reservedForTenant = reservedForTenant || null;
+    }
+    if (reservationVisit !== undefined) {
+      listing.reservationVisit = reservationVisit || null;
+    }
 
     await listing.save();
 

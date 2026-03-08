@@ -31,13 +31,13 @@ export default function TicketDetailPage() {
 
   return (
     <div className="max-w-3xl mx-auto">
-      <h2 className="text-2xl font-bold mb-1">{ticket.subject}</h2>
-      <p className="text-sm text-gray-500 mb-4">{ticket.category} · {ticket.status}</p>
+      <h2 className="text-3xl font-bold mb-1">{ticket.subject}</h2>
+      <p className="text-sm muted mb-4">{ticket.category} · {ticket.status}</p>
 
-      <div className="bg-white rounded shadow p-4 space-y-3 mb-4 max-h-96 overflow-y-auto">
+      <div className="surface-card p-4 space-y-3 mb-4 max-h-96 overflow-y-auto">
         {ticket.messages.map((m, i) => (
-          <div key={i} className={`p-3 rounded ${m.senderRole === 'admin' ? 'bg-blue-50 ml-8' : 'bg-gray-50 mr-8'}`}>
-            <p className="text-xs font-medium text-gray-500 mb-1">{m.senderRole === 'admin' ? 'Admin' : 'You'} · {new Date(m.createdAt).toLocaleString()}</p>
+          <div key={i} className={`p-3 rounded ${m.senderRole === 'admin' ? 'bg-[#eaf1ff] ml-8' : 'bg-[#f7f8ff] mr-8'}`}>
+            <p className="text-xs font-medium muted mb-1">{m.senderRole === 'admin' ? 'Admin' : 'You'} · {new Date(m.createdAt).toLocaleString()}</p>
             <p className="text-sm">{m.message}</p>
           </div>
         ))}
@@ -45,12 +45,12 @@ export default function TicketDetailPage() {
 
       {ticket.status !== 'closed' && (
         <div className="flex gap-2">
-          <input placeholder="Type a reply..." className="border px-3 py-2 rounded flex-1" value={reply} onChange={(e) => setReply(e.target.value)} />
-          <button onClick={sendReply} className="bg-blue-600 text-white px-4 py-2 rounded">Send</button>
+          <input placeholder="Type a reply..." className="input flex-1" value={reply} onChange={(e) => setReply(e.target.value)} />
+          <button onClick={sendReply} className="btn btn-primary">Send</button>
         </div>
       )}
 
-      {msg && <p className="text-sm text-red-500 mt-2">{msg}</p>}
+      {msg && <p className="text-sm mt-2" style={{ color: 'var(--color-error)' }}>{msg}</p>}
     </div>
   );
 }

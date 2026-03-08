@@ -3,19 +3,20 @@ import api from '../lib/api.js';
 
 export default function MyExtensionsPage() {
   const [extensions, setExtensions] = useState([]);
-  const [moveIns, setMoveIns] = useState([]);
+  const [eligibleMoveIns, setEligibleMoveIns] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ moveInId: '', currentEndDate: '', requestedEndDate: '', reason: '' });
+  const [activeMoveInId, setActiveMoveInId] = useState('');
+  const [form, setForm] = useState({ currentEndDate: '', requestedEndDate: '', reason: '' });
   const [msg, setMsg] = useState('');
+  const [error, setError] = useState('');
 
   const fetch = () => {
     Promise.all([
       api.get('/extensions/mine'),
-      api.get('/move-in/mine'),
+      api.get('/extensions/eligible'),
     ]).then(([ext, mi]) => {
       setExtensions(ext.data.data);
-      setMoveIns(mi.data.data.filter((m) => m.status === 'completed'));
+      setEligibleMoveIns(mi.data.data);
       setLoading(false);
     }).catch(console.error);
   };
@@ -23,19 +24,21 @@ export default function MyExtensionsPage() {
 
   const create = async () => {
     try {
-      await api.post('/extensions', form);
+      await api.post('/extensions', { ...form, moveInId: activeMoveInId });
       setMsg('Extension requested!');
-      setShowForm(false);
-      setForm({ moveInId: '', currentEndDate: '', requestedEndDate: '', reason: '' });
+      setError('');
+      setActiveMoveInId('');
+      setForm({ currentEndDate: '', requestedEndDate: '', reason: '' });
       fetch();
-    } catch (e) { setMsg(e.response?.data?.message || 'Error'); }
+    } catch (e) { setError(e.response?.data?.message || 'Error'); }
   };
 
   const cancel = async (id) => {
     try {
       await api.patch(`/extensions/${id}/cancel`);
+      setError('');
       fetch();
-    } catch (e) { alert(e.response?.data?.message || 'Error'); }
+    } catch (e) { setError(e.response?.data?.message || 'Error'); }
   };
 
   if (loading) return <p>Loading...</p>;
@@ -50,46 +53,60 @@ export default function MyExtensionsPage() {
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold">Stay Extensions</h2>
-        <button onClick={() => setShowForm(!showForm)} className="bg-blue-600 text-white px-4 py-2 rounded text-sm">
-          {showForm ? 'Cancel' : '+ Request Extension'}
-        </button>
+        <h2 className="text-3xl font-bold">Stay Extensions</h2>
       </div>
 
-      {showForm && (
-        <div className="bg-white p-4 rounded shadow mb-6 space-y-3">
-          <select className="border px-3 py-2 rounded w-full" value={form.moveInId}
-            onChange={(e) => setForm({ ...form, moveInId: e.target.value })}>
-            <option value="">Select completed move-in</option>
-            {moveIns.map((m) => <option key={m._id} value={m._id}>{m.listing?.title || m._id}</option>)}
-          </select>
-          <input type="date" placeholder="Current end date" className="border px-3 py-2 rounded w-full" value={form.currentEndDate}
+      <div className="surface-card p-4 mb-6">
+        <h3 className="text-xl font-semibold mb-3">Initiate extension from moved-in listings</h3>
+        {eligibleMoveIns.length === 0 ? (
+          <p className="muted text-sm">No completed move-ins available for extension requests yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {eligibleMoveIns.map((moveIn) => (
+              <button
+                key={moveIn._id}
+                className="w-full text-left p-3 rounded border"
+                style={{ borderColor: activeMoveInId === moveIn._id ? 'var(--color-fg)' : 'var(--color-border)' }}
+                onClick={() => setActiveMoveInId(moveIn._id)}
+              >
+                <p className="font-semibold">{moveIn.listing?.title || 'Listing'}</p>
+                <p className="text-sm muted">{moveIn.listing?.locationText}</p>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {activeMoveInId && (
+        <div className="surface-card p-4 mb-6 space-y-3">
+          <input type="date" placeholder="Current end date" className="input" value={form.currentEndDate}
             onChange={(e) => setForm({ ...form, currentEndDate: e.target.value })} />
-          <input type="date" placeholder="Requested end date" className="border px-3 py-2 rounded w-full" value={form.requestedEndDate}
+          <input type="date" placeholder="Requested end date" className="input" value={form.requestedEndDate}
             onChange={(e) => setForm({ ...form, requestedEndDate: e.target.value })} />
-          <textarea placeholder="Reason for extension..." rows="2" className="border px-3 py-2 rounded w-full" value={form.reason}
+          <textarea placeholder="Reason for extension..." rows="2" className="textarea" value={form.reason}
             onChange={(e) => setForm({ ...form, reason: e.target.value })} />
-          <button onClick={create} className="bg-blue-600 text-white px-4 py-2 rounded">Submit</button>
+          <button onClick={create} className="btn btn-primary">Submit extension request</button>
         </div>
       )}
 
-      {msg && <p className="text-sm text-green-600 mb-2">{msg}</p>}
+      {msg && <p className="text-sm mb-2" style={{ color: 'var(--color-success)' }}>{msg}</p>}
+      {error && <p className="text-sm mb-2" style={{ color: 'var(--color-error)' }}>{error}</p>}
 
-      {extensions.length === 0 ? <p className="text-gray-500">No extension requests.</p> : (
+      {extensions.length === 0 ? <p className="muted">No extension requests.</p> : (
         <div className="space-y-3">
           {extensions.map((e) => (
-            <div key={e._id} className="bg-white p-4 rounded shadow flex justify-between items-center">
+            <div key={e._id} className="surface-card p-4 flex justify-between items-center gap-3">
               <div>
                 <p className="font-semibold">{e.listing?.title || 'Listing'}</p>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs muted">
                   {new Date(e.currentEndDate).toLocaleDateString()} → {new Date(e.requestedEndDate).toLocaleDateString()}
                 </p>
-                <p className="text-xs text-gray-400">{e.reason}</p>
+                <p className="text-xs muted">{e.reason}</p>
               </div>
               <div className="flex items-center gap-2">
                 <span className={`text-xs px-2 py-1 rounded ${STATUS_COLORS[e.status]}`}>{e.status}</span>
                 {e.status === 'pending' && (
-                  <button onClick={() => cancel(e._id)} className="text-xs text-red-600 hover:underline">Cancel</button>
+                  <button onClick={() => cancel(e._id)} className="btn btn-danger">Cancel</button>
                 )}
               </div>
             </div>

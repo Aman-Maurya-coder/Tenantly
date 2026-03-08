@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../lib/api.js';
 
 const STATUS_COLORS = {
@@ -12,9 +13,11 @@ const STATUS_COLORS = {
 };
 
 export default function MyVisitsPage() {
+  const navigate = useNavigate();
   const [visits, setVisits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState('');
+  const [error, setError] = useState('');
 
   const fetch = () => {
     api.get('/visits/mine').then((r) => { setVisits(r.data.data); setLoading(false); }).catch(console.error);
@@ -25,18 +28,41 @@ export default function MyVisitsPage() {
     try {
       await api.patch(`/visits/${id}/cancel`);
       setMsg('Cancel request sent.');
+      setError('');
       fetch();
     } catch (e) {
-      alert(e.response?.data?.message || 'Error');
+      setError(e.response?.data?.message || 'Unable to cancel visit');
+    }
+  };
+
+  const markVisited = async (id) => {
+    try {
+      await api.patch(`/visits/${id}/visited`);
+      setMsg('Visit marked as visited.');
+      setError('');
+      fetch();
+    } catch (e) {
+      setError(e.response?.data?.message || 'Unable to mark visit as visited');
+    }
+  };
+
+  const setInterest = async (id, status) => {
+    try {
+      await api.patch(`/visits/${id}/interest`, { status });
+      setMsg(`Visit updated: ${status}`);
+      setError('');
+      fetch();
+    } catch (e) {
+      setError(e.response?.data?.message || 'Unable to update visit decision');
     }
   };
 
   const initiateMoveIn = async (visitId) => {
     try {
-      await api.post('/move-in', { visitId });
-      setMsg('Move-in initiated. Continue from Move-Ins page.');
+      const response = await api.post('/move-in', { visitId });
+      navigate('/move-ins', { state: { focusMoveInId: response.data?.data?._id } });
     } catch (e) {
-      setMsg(e.response?.data?.message || 'Unable to initiate move-in');
+      setError(e.response?.data?.message || 'Unable to initiate move-in');
     }
   };
 
@@ -44,27 +70,37 @@ export default function MyVisitsPage() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-4">My Visits</h2>
-      {msg && <p className="text-sm text-blue-400 mb-3">{msg}</p>}
-      {visits.length === 0 ? <p className="text-gray-500">No visit requests yet.</p> : (
+      <h2 className="text-3xl font-bold mb-4">My Visits</h2>
+      {msg && <p className="text-sm mb-3" style={{ color: 'var(--color-success)' }}>{msg}</p>}
+      {error && <p className="text-sm mb-3" style={{ color: 'var(--color-error)' }}>{error}</p>}
+      {visits.length === 0 ? <p className="muted">No visit requests yet.</p> : (
         <div className="space-y-3">
           {visits.map((v) => (
-            <div key={v._id} className="bg-white p-4 rounded shadow flex items-center justify-between">
+            <div key={v._id} className="surface-card p-4 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="font-semibold">{v.listing?.title || 'Listing'}</p>
-                <p className="text-sm text-gray-500">{v.listing?.locationText}</p>
-                <p className="text-xs text-gray-400">Requested: {new Date(v.requestedDate).toLocaleDateString()}</p>
-                {v.scheduledDate && <p className="text-xs text-blue-500">Scheduled: {new Date(v.scheduledDate).toLocaleDateString()}</p>}
-                {v.adminNotes && <p className="text-xs text-gray-500 mt-1">Admin: {v.adminNotes}</p>}
+                <p className="text-sm muted">{v.listing?.locationText}</p>
+                <p className="text-xs muted">Requested: {new Date(v.requestedDate).toLocaleDateString()}</p>
+                {v.scheduledDate && <p className="text-xs">Scheduled: {new Date(v.scheduledDate).toLocaleDateString()}</p>}
+                {v.adminNotes && <p className="text-xs muted mt-1">Admin note: {v.adminNotes}</p>}
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className={`text-xs px-2 py-1 rounded ${STATUS_COLORS[v.status] || 'bg-gray-100'}`}>{v.status}</span>
                 {['Requested', 'Scheduled'].includes(v.status) && (
-                  <button onClick={() => cancelVisit(v._id)} className="text-xs text-red-600 hover:underline">Cancel</button>
+                  <button onClick={() => cancelVisit(v._id)} className="btn btn-tertiary">Cancel</button>
+                )}
+                {v.status === 'Scheduled' && (
+                  <button onClick={() => markVisited(v._id)} className="btn btn-primary">Mark visited</button>
+                )}
+                {v.status === 'Visited' && (
+                  <>
+                    <button onClick={() => setInterest(v._id, 'Interested')} className="btn btn-primary">Interested</button>
+                    <button onClick={() => setInterest(v._id, 'NotInterested')} className="btn btn-secondary">Not interested</button>
+                  </>
                 )}
                 {v.status === 'Interested' && (
-                  <button onClick={() => initiateMoveIn(v._id)} className="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700">
-                    Initiate Move-In
+                  <button onClick={() => initiateMoveIn(v._id)} className="btn btn-primary">
+                    Continue to move-ins
                   </button>
                 )}
               </div>

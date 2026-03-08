@@ -2,19 +2,35 @@ const mongoose = require('mongoose');
 
 const documentSubSchema = new mongoose.Schema(
   {
-    name: {
+    label: {
       type: String,
       required: true,
       trim: true,
     },
-    fileUrl: {
+    storedName: {
       type: String,
       required: true,
       trim: true,
     },
-    verified: {
-      type: Boolean,
-      default: false,
+    originalName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    mimeType: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    size: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    path: {
+      type: String,
+      required: true,
+      trim: true,
     },
   },
   { _id: true }
@@ -29,12 +45,18 @@ const inventoryItemSchema = new mongoose.Schema(
     },
     condition: {
       type: String,
-      enum: ['good', 'minor_damage', 'needs_repair', ''],
-      default: '',
+      enum: ['good', 'minor_damage', 'needs_repair'],
+      required: true,
     },
     confirmedByTenant: {
       type: Boolean,
       default: false,
+    },
+    notes: {
+      type: String,
+      trim: true,
+      maxlength: 1000,
+      default: '',
     },
   },
   { _id: true }
@@ -75,13 +97,7 @@ const moveInSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: [
-        'initiated',
-        'documents_submitted',
-        'agreement_confirmed',
-        'inventory_completed',
-        'completed',
-      ],
+      enum: ['initiated', 'completed'],
       default: 'initiated',
     },
   },
