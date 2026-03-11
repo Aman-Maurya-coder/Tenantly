@@ -16,7 +16,9 @@ export default function Layout() {
       </a>
       <header className="border-b" style={{ borderColor: 'var(--color-border)' }}>
         <nav className="page-container flex flex-wrap items-center justify-between gap-3 py-4" aria-label="Main">
-          <Link to={dashboardLink} className="text-2xl font-bold">Tenantly</Link>
+          <Link to={dashboardLink} className="text-2xl font-bold">
+            <img src="/logo-without-tagline.png" alt="Tenantly Logo" width={100} height={50} />
+          </Link>
 
           <div className="flex items-center gap-4 text-sm">
             <SignedOut>
